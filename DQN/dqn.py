@@ -1,10 +1,12 @@
-import sys
+# import gymnasium as gym
 from astroidgame import *
-#import gymnasium as gym
 import math
 import random
+import matplotlib
+import matplotlib.pyplot as plt
 from collections import namedtuple, deque
 from itertools import count
+
 
 import torch
 import torch.nn as nn
@@ -13,7 +15,42 @@ import torch.nn.functional as F
 
 #env = gym.make("CartPole-v1")
 
+is_ipython = 'inline' in matplotlib.get_backend()
+if is_ipython:
+    from IPython import display
+
+plt.ion()
+
+episode_durations = []
+
+
+def plot_durations(show_result=False):
+    plt.figure(1)
+    durations_t = torch.tensor(episode_durations, dtype=torch.float)
+    if show_result:
+        plt.title('Result')
+    else:
+        plt.clf()
+        plt.title('Training...')
+    plt.xlabel('Episode')
+    plt.ylabel('Duration')
+    plt.plot(durations_t.numpy())
+    # Take 100 episode averages and plot them too
+    if len(durations_t) >= 100:
+        means = durations_t.unfold(0, 100, 1).mean(1).view(-1)
+        means = torch.cat((torch.zeros(99), means))
+        plt.plot(means.numpy())
+
+    plt.pause(0.001)  # pause a bit so that plots are updated
+    if is_ipython:
+        if not show_result:
+            display.display(plt.gcf())
+            display.clear_output(wait=True)
+        else:
+            display.display(plt.gcf())
+
 device = torch.device(
+    "xpu" if torch.xpu.is_available() else
     "cuda" if torch.cuda.is_available() else
     "mps" if torch.backends.mps.is_available() else
     "cpu"
@@ -29,6 +66,7 @@ class ReplayMemory(object):
         self.memory = deque([], maxlen=capacity)
 
     def push(self, *args):
+        """Save a transition"""
         self.memory.append(Transition(*args))
 
     def sample(self, batch_size):
@@ -40,21 +78,16 @@ class ReplayMemory(object):
 
 class DQN(nn.Module):
 
-    def __init__(self, n_actions):
+    def __init__(self, n_observations, n_actions):
         super(DQN, self).__init__()
-        self.conv1 = nn.Conv2d(1, 3, 70, 10, "valid")
-        self.layer = nn.Linear(12288, 1000)
-        self.layer1 = nn.Linear(1000, 128)
+        self.layer1 = nn.Linear(n_observations, 128)
         self.layer2 = nn.Linear(128, 128)
         self.layer3 = nn.Linear(128, n_actions)
 
     def forward(self, x):
-        x = F.normalize(x)
-        x = F.relu(self.conv1(x)).flatten(1)
-        x = F.relu(self.layer(x))
         x = F.relu(self.layer1(x))
         x = F.relu(self.layer2(x))
-        return F.softmax(self.layer3(x), 1)
+        return self.layer3(x)
 
 
 BATCH_SIZE = 128
@@ -62,17 +95,18 @@ GAMMA = 0.99
 EPS_START = 0.9
 EPS_END = 0.01
 EPS_DECAY = 2500
-TAU = 0.005
+TAU = 0.1#0.005
 LR = 3e-4
 
 #n_actions = env.action_space.n
-n_actions = len(plr.action_space)
-state = reset()
-#n_observations = len(state)
-#n_observations = 700**2
+n_actions = len(bot.action_space)
 
-policy_net = DQN(n_actions).to(device)
-target_net = DQN(n_actions).to(device)
+#state, info = env.reset()
+state = reset()
+n_observations = len(state)
+
+policy_net = DQN(n_observations, n_actions).to(device)
+target_net = DQN(n_observations, n_actions).to(device)
 target_net.load_state_dict(policy_net.state_dict())
 
 optimizer = optim.AdamW(policy_net.parameters(), lr=LR, amsgrad=True)
@@ -80,26 +114,26 @@ memory = ReplayMemory(10000)
 
 steps_done = 0
 
+
 def select_action(state):
     global steps_done
     sample = random.random()
-    eps_threshold = EPS_END + (EPS_START - EPS_END) * math.exp(-1. * steps_done / EPS_DECAY)
+    eps_threshold = EPS_END + (EPS_START - EPS_END) * \
+                    math.exp(-1. * steps_done / EPS_DECAY)
     steps_done += 1
     if sample > eps_threshold:
         with torch.no_grad():
-            #print(policy_net(state).unsqueeze(0))
+
             return policy_net(state).max(1).indices.view(1, 1)
     else:
-        idx = random.randint(0, len(plr.action_space) - 1)
-        return torch.tensor([[plr.action_space[idx]]], device=device, dtype=torch.long)
+        idx = random.randint(0, n_actions - 1)
         #return torch.tensor([[env.action_space.sample()]], device=device, dtype=torch.long)
+        return torch.tensor([[bot.action_space[idx]]], device=device, dtype=torch.long)
 
 
 def optimize_model():
     if len(memory) < BATCH_SIZE:
         return
-
-    print("start optimize")
     transitions = memory.sample(BATCH_SIZE)
 
     batch = Transition(*zip(*transitions))
@@ -108,12 +142,8 @@ def optimize_model():
                                             batch.next_state)), device=device, dtype=torch.bool)
     non_final_next_states = torch.cat([s for s in batch.next_state
                                        if s is not None])
-    state_batch = torch.cat(batch.state, 0)
-
-    #print(state_batch.shape)
-
+    state_batch = torch.cat(batch.state)
     action_batch = torch.cat(batch.action)
-
     reward_batch = torch.cat(batch.reward)
 
     state_action_values = policy_net(state_batch).gather(1, action_batch)
@@ -130,53 +160,49 @@ def optimize_model():
     optimizer.zero_grad()
     loss.backward()
 
-    torch.nn.utils.clip_grad_value_(policy_net.parameters(), 100)
+    #torch.nn.utils.clip_grad_value_(policy_net.parameters(), 100)
     optimizer.step()
-
-    print("end optimize")
 
 
 if torch.cuda.is_available() or torch.backends.mps.is_available():
     num_episodes = 600
 else:
-    num_episodes = 100
+    num_episodes = 600
 
+for i_episode in range(num_episodes):
 
-def main():
-    for i_episode in range(num_episodes):
-        #state, info = env.reset()
-        state = reset()
-        #state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
-        state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
-        for t in count():
-            action = select_action(state)
-            #observation, reward, terminated, truncated, _ = env.step(action.item())
-            observation, reward, terminated, truncated, _ = step(action.item())
+    #state, info = env.reset()
+    state = reset()
+    state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
+    for t in count():
+        action = select_action(state)
+        observation, reward, terminated, truncated, _ = step(action.item(), True)
+        reward = torch.tensor([reward], device=device)
+        done = terminated or truncated
 
-            reward = torch.tensor([reward], device=device)
-            done = terminated or truncated
+        if terminated:
+            next_state = None
+        else:
+            next_state = torch.tensor(observation, dtype=torch.float32, device=device).unsqueeze(0)
 
-            if terminated:
-                next_state = None
-            else:
-                #next_state = torch.tensor(observation, dtype=torch.float32, device=device).unsqueeze(0)
-                next_state = torch.tensor(observation, dtype=torch.float32, device=device).unsqueeze(0)
+        memory.push(state, action, next_state, reward)
 
-            memory.push(state, action, next_state, reward)
+        state = next_state
 
-            state = next_state
+        optimize_model()
 
-            if t % 100 == 0 and plr.score < 500:
-                optimize_model()
+        target_net_state_dict = target_net.state_dict()
+        policy_net_state_dict = policy_net.state_dict()
+        for key in policy_net_state_dict:
+            target_net_state_dict[key] = policy_net_state_dict[key] * TAU + target_net_state_dict[key] * (1 - TAU)
+        target_net.load_state_dict(target_net_state_dict)
 
-            target_net_state_dict = target_net.state_dict()
-            policy_net_state_dict = policy_net.state_dict()
-            for key in policy_net_state_dict:
-                target_net_state_dict[key] = policy_net_state_dict[key] * TAU + target_net_state_dict[key] * (1 - TAU)
-            target_net.load_state_dict(target_net_state_dict)
+        if done:
+            episode_durations.append(t + 1)
+            plot_durations()
+            break
 
-            if done:
-                break
-
-if __name__ == "__main__":
-    main()
+print('Complete')
+plot_durations(show_result=True)
+plt.ioff()
+plt.show()

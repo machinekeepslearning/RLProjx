@@ -2,10 +2,8 @@ import numpy
 import torch
 import itertools
 
-a = torch.tensor([[1.0, 2.0, 3.0],
-                  [4.0, 5.0, 6.0]], dtype=torch.float32)
-
-print(torch.nn.functional.softmax(a, 1))
-
+a = (1, 2)
+b = (3, 4)
+print([0, 1, 2, 3, 4] + [1, 2, 3, 4, 5])
 
 
