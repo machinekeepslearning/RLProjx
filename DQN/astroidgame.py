@@ -1,13 +1,15 @@
 import math
 import random
 import threading
-
+import gymnasium as gym
 import numpy
 import pygame
 
+render = False
+bounds = (800, 800)
 pygame.init()
-bounds = (700, 700)
-screen = pygame.display.set_mode(bounds)
+if render:
+    screen = pygame.display.set_mode(bounds)
 clock = pygame.time.Clock()
 running = True
 fps = 60
@@ -17,9 +19,10 @@ seed = 0
 
 #pygame.time.wait(12000)
 
-font = pygame.font.SysFont("Arial", 12)
-gmfont = pygame.font.SysFont("Arial", 40)
-gameOverSurface = gmfont.render("GAME OVER", False, "black")
+if render:
+    font = pygame.font.SysFont("Arial", 12)
+    gmfont = pygame.font.SysFont("Arial", 40)
+    gameOverSurface = gmfont.render("GAME OVER", False, "black")
 
 bullets = pygame.sprite.Group()
 all_sprites = pygame.sprite.Group()
@@ -37,7 +40,7 @@ def spawnAsteroids():
     global asteroids_active
 
     while running and not gameOver:
-        asteroids.add(Asteroid(400))
+        asteroids.add(Asteroid(bounds[0]/2 + 50))
         asteroids_active = True
         pygame.time.wait(800)
     asteroids_active = False
@@ -53,7 +56,7 @@ class Bullet(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=self.rect.center)
 
     def update(self):
-        if self.rect.x > 700 or self.rect.x < 0 or self.rect.y > 700 or self.rect.y < 0:
+        if self.rect.x > bounds[0] or self.rect.x < 0 or self.rect.y > bounds[1] or self.rect.y < 0:
             self.kill()
         vec_x = -10 * math.sin(self.angle * math.pi / 180.0)
         vec_y = -10 * math.cos(self.angle * math.pi / 180.0)
@@ -61,14 +64,14 @@ class Bullet(pygame.sprite.Sprite):
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, width, height, accel):
+    def __init__(self, width, height, accel, sensor_length):
         super().__init__()
         self.accel = accel
         self.speed = 0
         self.ogimage = pygame.image.load("ship.png")
         self.ogimage = pygame.transform.scale(self.ogimage, (width, height))
         self.image = self.ogimage
-        self.rect = self.image.get_rect(center=(350, 350))
+        self.rect = self.image.get_rect(center=(bounds[0]/2, bounds[1]/2))
         self.angle = 0
         self.debounce = [True]
         self.lives = 3
@@ -78,7 +81,7 @@ class Player(pygame.sprite.Sprite):
         self.vec_y = 0
 
         #sensors
-        self.num_sensors = 15
+        self.num_sensors = 20
         self.og_sensors = [None] * self.num_sensors
         self.sensors = [None] * self.num_sensors
         self.sensor_angles = [0] * self.num_sensors
@@ -99,11 +102,10 @@ class Player(pygame.sprite.Sprite):
         self.action_space = (0, 1, 2, 3)
 
     def reset(self):
+        self.score = 0
+        self.lives = 3
+        self.rect.center = (int(bounds[0]/2), int(bounds[1]/2))
         for i in range(self.num_sensors):
-            self.og_sensors[i] = pygame.transform.scale2x(pygame.image.load("sensor_blue.png"))
-            self.sensor_angles[i] = i * 360.0 / self.num_sensors
-            self.sensors[i] = pygame.transform.rotate(self.og_sensors[i], self.sensor_angles[i])
-            self.sensor_rects[i] = self.sensors[i].get_rect()
             self.sensor_rects[i].center = (
                 self.rect.centerx + 50 * math.sin(self.sensor_angles[i] * math.pi / 180.0),
                 self.rect.centery + 50 * math.cos(self.sensor_angles[i] * math.pi / 180.0))
@@ -117,39 +119,42 @@ class Player(pygame.sprite.Sprite):
         self.out_of_bounds = self.rect.centerx > 700 or self.rect.centerx < 0 or self.rect.centery > 700 or self.rect.centery < 0
         if self.out_of_bounds:
             #self.score -= 200
-            if self.rect.centerx > 700:
+            if self.rect.centerx > bounds[0]:
                 self.rect.centerx = 0
             if self.rect.centerx < 0:
-                self.rect.centerx = 700
-            if self.rect.centery > 700:
+                self.rect.centerx = bounds[0]
+            if self.rect.centery > bounds[1]:
                 self.rect.centery = 0
             if self.rect.centery < 0:
-                self.rect.centery = 700
-            self.reset()
+                self.rect.centery = bounds[1]
+            for i in range(self.num_sensors):
+                self.sensor_rects[i].center = (
+                    self.rect.centerx + 50 * math.sin(self.sensor_angles[i] * math.pi / 180.0),
+                    self.rect.centery + 50 * math.cos(self.sensor_angles[i] * math.pi / 180.0))
         if self.lives == 0:
             gameOver = True
             asteroids.empty()
             bullets.empty()
             self.lives = 0
-            self.score -= 600
+            self.score -= 50
             self.angle = 0
             self.speed = 0
         elif idx != -1 and self.lives > 0:
-            self.score -= 100
+            self.score -= 10
             self.lives -= 1
             colls[idx].kill()
         # else:
-        #     self.score += 1 / (math.fabs(self.speed) + 100)
+        #     self.score += 1e-5
 
         keys = pygame.key.get_pressed()
 
-        if action == 0:
+        if action == 0:# or keys[pygame.K_w]:
             self.speed += self.accel
-        if action == 1:
+        if action == 1:# or keys[pygame.K_s]:
             self.speed += -self.accel
-        if action == 2:
+        if action == 2:# or keys[pygame.K_a]:
             self.angle += 5
-        if action == 3:
+        if action == 3:# or keys[pygame.K_d]:
             self.angle += -5
         if action == 4 and self.debounce[0]:
             bullets.add(Bullet(self.rect, self.angle))
@@ -158,8 +163,8 @@ class Player(pygame.sprite.Sprite):
 
         #limiter
         if self.angle >= 360:
-            self.angle -= 360
-        self.speed = max(min(self.speed, 5), 0)
+            self.angle = 0
+        self.speed = max(min(self.speed, 1), -1)
 
         #fix centering of rotated image
         self.image = pygame.transform.rotate(self.ogimage, self.angle)
@@ -177,31 +182,31 @@ class Player(pygame.sprite.Sprite):
                 coll_pos = mask.overlap(a_mask, (asteroid.rect.x - self.sensor_rects[i].x,
                                                  asteroid.rect.y - self.sensor_rects[i].y))
                 if coll_pos is not None:
-                    self.observation_x[i] = coll_pos[0]
-                    self.observation_y[i] = coll_pos[1]
+                    self.observation_x[i] = coll_pos[0]/bounds[0]
+                    self.observation_y[i] = coll_pos[1]/bounds[1]
                     #asteroid.kill()
                     self.score -= 1/(math.dist(self.rect.center, coll_pos) + 10)
                 else:
-                    self.observation_x[i] = -300
-                    self.observation_y[i] = -300
-                    # self.score += 0.000005
+                    self.observation_x[i] = 0
+                    self.observation_y[i] = 0
+                    self.score += 5e-6
 
 
 class Asteroid(pygame.sprite.Sprite):
     def __init__(self, radius):
         super().__init__()
         global seed
-        self.image = pygame.Surface([50, 50])
+        self.image = pygame.Surface([20, 20])
         self.rect = self.image.get_rect()
-        random.seed(seed)
-        seed += 1
+        #random.seed(seed)
+        #seed += 1
         self.angle = random.uniform(0, 2 * math.pi)
-        speed = random.uniform(2, 4)
+        speed = random.uniform(2, 3)
         radius = radius
-        self.rect.x = radius * math.cos(self.angle) + 350
-        self.rect.y = radius * math.sin(self.angle) + 350
-        target_x = 350
-        target_y = 350
+        self.rect.x = radius * math.cos(self.angle) + bounds[0]/2
+        self.rect.y = radius * math.sin(self.angle) + bounds[1]/2
+        target_x = bot.rect.x#bounds[0]/2
+        target_y = bot.rect.y#bounds[1]/2
         magnitude = math.sqrt((target_x - self.rect.x) ** 2 + (target_y - self.rect.y) ** 2)
         self.velocity_x = speed * (target_x - self.rect.x) / magnitude
         self.velocity_y = speed * (target_y - self.rect.y) / magnitude
@@ -212,7 +217,7 @@ class Asteroid(pygame.sprite.Sprite):
             bullets.sprites()[idx].kill()
             bot.score += 50
             self.kill()
-        elif self.rect.x > 800 or self.rect.x < -100 or self.rect.y > 800 or self.rect.y < -100:
+        elif self.rect.x > bounds[0] + 100 or self.rect.x < -100 or self.rect.y > bounds[1] + 100 or self.rect.y < -100:
             self.kill()
         self.rect.move_ip(self.velocity_x, self.velocity_y)
 
@@ -227,19 +232,19 @@ class Border(pygame.sprite.Sprite):
         self.velocity_y = 0
 
 
-def globalUpdate(groups, render):
+def globalUpdate(groups):
+    global render
     for group in groups:
         group.update()
-        group.draw(screen)
+        if render:
+            group.draw(screen)
 
 
-bot = Player(10, 10, 0.1)
-
-
+bot = Player(10, 10, 0.01, 20)
 #plr = Player(100, 100, 0.1)
 
-def step(action, render):
-    global running
+def step(action):
+    global running, render
     # poll for events
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -247,10 +252,10 @@ def step(action, render):
 
     old_score = bot.score
 
-    screen.fill("white")
     # update and draw sprites + screen + text
-    globalUpdate([all_sprites, asteroids, bullets, borders], render)
     agents.update(action)
+    if render: screen.fill("white")
+    globalUpdate([all_sprites, asteroids, bullets, borders])
     #print(len(asteroids.sprites()))
     if render:
         for i in range(bot.num_sensors):
@@ -259,7 +264,7 @@ def step(action, render):
 
         scoreSurface = font.render(f"Score: {bot.score}", False, "black")
         livesSurface = font.render(f"Lives: {bot.lives}", False, "black")
-        screen.blit(scoreSurface, (600, 20))
+        screen.blit(scoreSurface, (100, 20))
         screen.blit(livesSurface, (20, 20))
 
         #swap buffers and increment clock
@@ -268,14 +273,14 @@ def step(action, render):
 
     reward = bot.score - old_score
     observation = numpy.array(bot.observation_x + bot.observation_y)
-    observation = numpy.append(observation, bot.rect.top)
-    observation = numpy.append(observation, bot.rect.left)
-    observation = numpy.append(observation, bot.rect.bottom)
-    observation = numpy.append(observation, bot.rect.right)
-    observation = numpy.append(observation, bot.angle)
-    observation = numpy.append(observation, bot.vec_x)
-    observation = numpy.append(observation, bot.vec_y)
-
+    observation = numpy.append(observation, (bot.rect.top + 10)/bounds[1])
+    observation = numpy.append(observation, (bot.rect.left - 10)/bounds[0])
+    observation = numpy.append(observation, (bot.rect.bottom - 10)/bounds[1])
+    observation = numpy.append(observation, (bot.rect.right + 10)/bounds[0])
+    observation = numpy.append(observation, bot.angle/360)
+    observation = numpy.append(observation, bot.vec_x/bounds[0])
+    observation = numpy.append(observation, bot.vec_y/bounds[1])
+    #print(observation)
     #print(bot.rect.top)
 
     terminated = gameOver
@@ -286,29 +291,27 @@ def step(action, render):
 def reset():
     global gameOver, seed
     asteroids.empty()
-    #pygame.time.wait(1000)
+
     gameOver = False
-    bot.score = 0
-    bot.lives = 3
-    bot.rect.center = (350, 350)
     bot.reset()
     seed = 0
     if not bot.alive():
         agents.add(bot)
+        print("added")
     if not asteroids_active:
         threading.Thread(target=spawnAsteroids).start()
 
     state = numpy.array([])
-    for _ in range(37):
+    for _ in range(47):
         state = numpy.append(state, 0)
 
-    return state
+    return state, 0
 
 
-b1 = Border(10, 700, 0, 0)
-b2 = Border(10, 700, 690, 0)
-b3 = Border(700, 10, 0, 0)
-b4 = Border(700, 10, 0, 690)
+b1 = Border(10, bounds[1], 0, 0)
+b2 = Border(10, bounds[1], bounds[0] - 10, 0)
+b3 = Border(bounds[0], 10, 0, 0)
+b4 = Border(bounds[0], 10, 0, bounds[1] - 10)
 
 borders.add(b1)
 borders.add(b2)
@@ -323,7 +326,7 @@ def main():
     while running:
         if gameOver:
             reset()
-        step(i % 6, True)
+        step(i % 6)
         i += 1
 
     pygame.quit()

@@ -12,7 +12,7 @@ running = True
 font = pygame.font.SysFont('Arial', 30)
 fps = 600
 
-time.sleep(12)
+#time.sleep(12)
 
 action_table = {}
 reward_table = {}
