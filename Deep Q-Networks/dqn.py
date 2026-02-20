@@ -19,7 +19,7 @@ plt.ion()
 print(torch.xpu.is_available())
 
 device = torch.device(
-    "cuda" if torch.cuda.is_available() else
+    "xpu" if torch.xpu.is_available() else
     "mps" if torch.backends.mps.is_available() else
     "cpu"
 )
@@ -104,7 +104,7 @@ def select_action(state):
             return policy_net(state).max(1).indices.view(1, 1)
     else:
         #return torch.tensor([[env.action_space.sample()]], device=device, dtype=torch.long)
-        return torch.tensor([[bot.action_space[random.randint(0, n_actions-1)]]])
+        return torch.tensor([[bot.action_space[random.randint(0, n_actions-1)]]], device=device, dtype=torch.long)
 
 
 episode_durations = []
@@ -119,9 +119,12 @@ def plot_durations(show_result=False):
     else:
         plt.clf()
         plt.title('Training...')
-    plt.xlabel('Duration')
-    plt.ylabel('Score')
-    plt.scatter(durations_t.numpy(),score_t.numpy())
+    #plt.xlabel('Duration')
+    #plt.ylabel('Score')
+    #plt.scatter(durations_t.numpy(), score_t.numpy())
+    plt.xlabel('Episode')
+    plt.ylabel('duration')
+    plt.plot(durations_t.numpy())
 
     # if len(durations_t) >= 10:
     #     means = durations_t.unfold(0, 10, 1).mean(1).view(-1)
@@ -195,7 +198,7 @@ for i_episode in range(num_episodes):
         observation, reward, terminated, truncated, _ = step(action.item())
         reward = torch.tensor([reward], device=device)
         done = terminated or truncated
-
+        print(reward)
         if terminated:
             next_state = None
         else:

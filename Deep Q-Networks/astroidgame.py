@@ -1,11 +1,10 @@
 import math
 import random
 import threading
-import gymnasium as gym
 import numpy
 import pygame
 
-render = False
+render = True
 bounds = (800, 800)
 pygame.init()
 if render:
@@ -74,21 +73,24 @@ class Player(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=(bounds[0]/2, bounds[1]/2))
         self.angle = 0
         self.debounce = [True]
-        self.lives = 3
+        self.max_lives = 1
+        self.lives = self.max_lives
         self.score = 0
         self.out_of_bounds = 0
         self.vec_x = 0
         self.vec_y = 0
 
         #sensors
-        self.num_sensors = 20
+        self.num_sensors = 5
         self.og_sensors = [None] * self.num_sensors
         self.sensors = [None] * self.num_sensors
         self.sensor_angles = [0] * self.num_sensors
         self.sensor_rects = [0] * self.num_sensors
+        offset = 170
+        max_angle = 30
         for i in range(self.num_sensors):
             self.og_sensors[i] = pygame.transform.scale2x(pygame.image.load("sensor_blue.png"))
-            self.sensor_angles[i] = i * 360.0 / self.num_sensors
+            self.sensor_angles[i] = offset +  i * max_angle / self.num_sensors
             self.sensors[i] = pygame.transform.rotate(self.og_sensors[i], self.sensor_angles[i])
             self.sensor_rects[i] = self.sensors[i].get_rect()
             self.sensor_rects[i].center = (
@@ -103,12 +105,12 @@ class Player(pygame.sprite.Sprite):
 
     def reset(self):
         self.score = 0
-        self.lives = 3
+        self.lives = self.max_lives
         self.rect.center = (int(bounds[0]/2), int(bounds[1]/2))
         for i in range(self.num_sensors):
             self.sensor_rects[i].center = (
                 self.rect.centerx + 50 * math.sin(self.sensor_angles[i] * math.pi / 180.0),
-                self.rect.centery + 50 * math.cos(self.sensor_angles[i] * math.pi / 180.0))
+                40 + self.rect.centery + 50 * math.cos(self.sensor_angles[i] * math.pi / 180.0))
 
     def update(self, action):
         global running, gameOver
@@ -130,7 +132,7 @@ class Player(pygame.sprite.Sprite):
             for i in range(self.num_sensors):
                 self.sensor_rects[i].center = (
                     self.rect.centerx + 50 * math.sin(self.sensor_angles[i] * math.pi / 180.0),
-                    self.rect.centery + 50 * math.cos(self.sensor_angles[i] * math.pi / 180.0))
+                    40 + self.rect.centery + 50 * math.cos(self.sensor_angles[i] * math.pi / 180.0))
         if self.lives == 0:
             gameOver = True
             asteroids.empty()
@@ -145,6 +147,7 @@ class Player(pygame.sprite.Sprite):
             colls[idx].kill()
         # else:
         #     self.score += 1e-5
+
 
         keys = pygame.key.get_pressed()
 
@@ -166,6 +169,9 @@ class Player(pygame.sprite.Sprite):
             self.angle = 0
         self.speed = max(min(self.speed, 1), -1)
 
+        if self.speed < 0.2:
+            self.score -= 0.1
+
         #fix centering of rotated image
         self.image = pygame.transform.rotate(self.ogimage, self.angle)
         self.rect = self.image.get_rect(center=self.rect.center)
@@ -175,6 +181,8 @@ class Player(pygame.sprite.Sprite):
 
         #draw sensors and sense collision
         for i in range(len(self.sensors)):
+            self.sensors[i] = pygame.transform.rotate(self.og_sensors[i], self.angle)
+            self.sensor_rects[i] = self.sensors[i].get_rect(center=self.sensor_rects[i].center)
             self.sensor_rects[i].move_ip(round(self.vec_x), round(self.vec_y))
             mask = pygame.mask.from_surface(self.sensors[i])
             for asteroid in colls: # + borders.sprites()):
@@ -189,7 +197,7 @@ class Player(pygame.sprite.Sprite):
                 else:
                     self.observation_x[i] = 0
                     self.observation_y[i] = 0
-                    self.score += 5e-6
+                    self.score += 5e-5
 
 
 class Asteroid(pygame.sprite.Sprite):
@@ -302,7 +310,7 @@ def reset():
         threading.Thread(target=spawnAsteroids).start()
 
     state = numpy.array([])
-    for _ in range(47):
+    for _ in range(17):
         state = numpy.append(state, 0)
 
     return state, 0
@@ -331,5 +339,5 @@ def main():
 
     pygame.quit()
 
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()
