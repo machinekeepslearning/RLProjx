@@ -4,17 +4,18 @@ import threading
 import numpy
 import pygame
 
-render = True
+render = False
 bounds = (800, 800)
 pygame.init()
 if render:
     screen = pygame.display.set_mode(bounds)
 clock = pygame.time.Clock()
 running = True
-fps = 60
+fps = 600
 gameOver = True
 asteroids_active = False
 seed = 0
+global_tick = 0
 
 #pygame.time.wait(12000)
 
@@ -39,7 +40,7 @@ def spawnAsteroids():
     global asteroids_active
 
     while running and not gameOver:
-        asteroids.add(Asteroid(bounds[0]/2 + 50))
+        asteroids.add(Asteroid(bounds[0] / 2 + 50))
         asteroids_active = True
         pygame.time.wait(800)
     asteroids_active = False
@@ -70,7 +71,7 @@ class Player(pygame.sprite.Sprite):
         self.ogimage = pygame.image.load("ship.png")
         self.ogimage = pygame.transform.scale(self.ogimage, (width, height))
         self.image = self.ogimage
-        self.rect = self.image.get_rect(center=(bounds[0]/2, bounds[1]/2))
+        self.rect = self.image.get_rect(center=(bounds[0] / 2, bounds[1] / 2))
         self.angle = 0
         self.debounce = [True]
         self.max_lives = 1
@@ -81,21 +82,22 @@ class Player(pygame.sprite.Sprite):
         self.vec_y = 0
 
         #sensors
-        self.num_sensors = 5
-        self.og_sensors = [None] * self.num_sensors
+        self.num_sensors = 20
+        self.sensor_size = 50
+        self.og_sensors = pygame.transform.scale(pygame.image.load("sensor_blue.png"), (1, self.sensor_size))
+        #self.og_sensors = pygame.image.load("sensor_blue.png")
         self.sensors = [None] * self.num_sensors
         self.sensor_angles = [0] * self.num_sensors
         self.sensor_rects = [0] * self.num_sensors
-        offset = 170
-        max_angle = 30
+        offset = 0
+        max_angle = 360
         for i in range(self.num_sensors):
-            self.og_sensors[i] = pygame.transform.scale2x(pygame.image.load("sensor_blue.png"))
-            self.sensor_angles[i] = offset +  i * max_angle / self.num_sensors
-            self.sensors[i] = pygame.transform.rotate(self.og_sensors[i], self.sensor_angles[i])
+            self.sensor_angles[i] = offset + i * max_angle / self.num_sensors
+            self.sensors[i] = pygame.transform.rotate(self.og_sensors, self.sensor_angles[i])
             self.sensor_rects[i] = self.sensors[i].get_rect()
             self.sensor_rects[i].center = (
-                self.rect.centerx + 50 * math.sin(self.sensor_angles[i] * math.pi / 180.0),
-                self.rect.centery + 50 * math.cos(self.sensor_angles[i] * math.pi / 180.0))
+                self.rect.centerx + (self.sensor_size/2) * math.sin(self.sensor_angles[i] * math.pi / 180.0),
+                self.rect.centery + (self.sensor_size/2) * math.cos(self.sensor_angles[i] * math.pi / 180.0))
 
         #RL variables
         self.num_observations = self.num_sensors
@@ -106,11 +108,11 @@ class Player(pygame.sprite.Sprite):
     def reset(self):
         self.score = 0
         self.lives = self.max_lives
-        self.rect.center = (int(bounds[0]/2), int(bounds[1]/2))
+        self.rect.center = (int(bounds[0] / 2), int(bounds[1] / 2))
         for i in range(self.num_sensors):
             self.sensor_rects[i].center = (
-                self.rect.centerx + 50 * math.sin(self.sensor_angles[i] * math.pi / 180.0),
-                40 + self.rect.centery + 50 * math.cos(self.sensor_angles[i] * math.pi / 180.0))
+                self.rect.centerx + (self.sensor_size/2) * math.sin(self.sensor_angles[i] * math.pi / 180.0),
+                self.rect.centery + (self.sensor_size/2) * math.cos(self.sensor_angles[i] * math.pi / 180.0))
 
     def update(self, action):
         global running, gameOver
@@ -131,46 +133,55 @@ class Player(pygame.sprite.Sprite):
                 self.rect.centery = bounds[1]
             for i in range(self.num_sensors):
                 self.sensor_rects[i].center = (
-                    self.rect.centerx + 50 * math.sin(self.sensor_angles[i] * math.pi / 180.0),
-                    40 + self.rect.centery + 50 * math.cos(self.sensor_angles[i] * math.pi / 180.0))
+                    self.rect.centerx + (self.sensor_size/2) * math.sin(self.sensor_angles[i] * math.pi / 180.0),
+                    self.rect.centery + (self.sensor_size/2) * math.cos(self.sensor_angles[i] * math.pi / 180.0))
         if self.lives == 0:
             gameOver = True
             asteroids.empty()
             bullets.empty()
             self.lives = 0
-            self.score -= 50
+            #self.score -= 50
             self.angle = 0
             self.speed = 0
         elif idx != -1 and self.lives > 0:
-            self.score -= 10
+            #self.score -= 10
             self.lives -= 1
             colls[idx].kill()
         # else:
         #     self.score += 1e-5
 
-
         keys = pygame.key.get_pressed()
 
-        if action == 0:# or keys[pygame.K_w]:
+        if action == 0:
             self.speed += self.accel
-        if action == 1:# or keys[pygame.K_s]:
+        if action == 1:
             self.speed += -self.accel
-        if action == 2:# or keys[pygame.K_a]:
+        if action == 2:
             self.angle += 5
-        if action == 3:# or keys[pygame.K_d]:
+        if action == 3:
             self.angle += -5
         if action == 4 and self.debounce[0]:
             bullets.add(Bullet(self.rect, self.angle))
             self.debounce[0] = False
             threading.Thread(target=cooldown, args=(self.debounce,)).start()
 
+        # if keys[pygame.K_w]:
+        #     self.speed += self.accel
+        # if keys[pygame.K_s]:
+        #     self.speed += -self.accel
+        # if keys[pygame.K_a]:
+        #     self.angle += 5
+        # if keys[pygame.K_d]:
+        #     self.angle += -5
+        # if action == 4 and self.debounce[0]:
+        #     bullets.add(Bullet(self.rect, self.angle))
+        #     self.debounce[0] = False
+        #     threading.Thread(target=cooldown, args=(self.debounce,)).start()
+
         #limiter
         if self.angle >= 360:
             self.angle = 0
-        self.speed = max(min(self.speed, 1), -1)
-
-        if self.speed < 0.2:
-            self.score -= 0.1
+        self.speed = max(min(self.speed, 2), -1)
 
         #fix centering of rotated image
         self.image = pygame.transform.rotate(self.ogimage, self.angle)
@@ -181,24 +192,21 @@ class Player(pygame.sprite.Sprite):
 
         #draw sensors and sense collision
         for i in range(len(self.sensors)):
-            self.sensors[i] = pygame.transform.rotate(self.og_sensors[i], self.angle)
-            self.sensor_rects[i] = self.sensors[i].get_rect(center=self.sensor_rects[i].center)
             self.sensor_rects[i].move_ip(round(self.vec_x), round(self.vec_y))
             mask = pygame.mask.from_surface(self.sensors[i])
-            for asteroid in colls: # + borders.sprites()):
+            for asteroid in colls:  # + borders.sprites()):
                 a_mask = pygame.mask.from_surface(asteroid.image)
                 coll_pos = mask.overlap(a_mask, (asteroid.rect.x - self.sensor_rects[i].x,
                                                  asteroid.rect.y - self.sensor_rects[i].y))
                 if coll_pos is not None:
-                    self.observation_x[i] = coll_pos[0]/bounds[0]
-                    self.observation_y[i] = coll_pos[1]/bounds[1]
+                    self.observation_x[i] = coll_pos[0] / bounds[0]
+                    self.observation_y[i] = coll_pos[1] / bounds[1]
                     #asteroid.kill()
-                    self.score -= 1/(math.dist(self.rect.center, coll_pos) + 10)
+                    self.score -= 1 / (math.dist(self.rect.center, coll_pos) + 10)
                 else:
                     self.observation_x[i] = 0
                     self.observation_y[i] = 0
                     self.score += 5e-5
-
 
 class Asteroid(pygame.sprite.Sprite):
     def __init__(self, radius):
@@ -211,10 +219,10 @@ class Asteroid(pygame.sprite.Sprite):
         self.angle = random.uniform(0, 2 * math.pi)
         speed = random.uniform(2, 3)
         radius = radius
-        self.rect.x = radius * math.cos(self.angle) + bounds[0]/2
-        self.rect.y = radius * math.sin(self.angle) + bounds[1]/2
-        target_x = bot.rect.x#bounds[0]/2
-        target_y = bot.rect.y#bounds[1]/2
+        self.rect.x = radius * math.cos(self.angle) + bounds[0] / 2
+        self.rect.y = radius * math.sin(self.angle) + bounds[1] / 2
+        target_x = bot.rect.x  #bounds[0]/2
+        target_y = bot.rect.y  #bounds[1]/2
         magnitude = math.sqrt((target_x - self.rect.x) ** 2 + (target_y - self.rect.y) ** 2)
         self.velocity_x = speed * (target_x - self.rect.x) / magnitude
         self.velocity_y = speed * (target_y - self.rect.y) / magnitude
@@ -249,10 +257,14 @@ def globalUpdate(groups):
 
 
 bot = Player(10, 10, 0.01, 20)
+
+
 #plr = Player(100, 100, 0.1)
 
 def step(action):
-    global running, render
+    global running, render, global_tick, gameOver
+
+    global_tick += 1
     # poll for events
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -277,20 +289,23 @@ def step(action):
 
         #swap buffers and increment clock
         pygame.display.flip()
-        clock.tick()
+        clock.tick(fps)
 
     reward = bot.score - old_score
     observation = numpy.array(bot.observation_x + bot.observation_y)
-    observation = numpy.append(observation, (bot.rect.top + 10)/bounds[1])
-    observation = numpy.append(observation, (bot.rect.left - 10)/bounds[0])
-    observation = numpy.append(observation, (bot.rect.bottom - 10)/bounds[1])
-    observation = numpy.append(observation, (bot.rect.right + 10)/bounds[0])
-    observation = numpy.append(observation, bot.angle/360)
-    observation = numpy.append(observation, bot.vec_x/bounds[0])
-    observation = numpy.append(observation, bot.vec_y/bounds[1])
+    observation = numpy.append(observation, (bot.rect.top + 10) / bounds[1])
+    observation = numpy.append(observation, (bot.rect.left - 10) / bounds[0])
+    observation = numpy.append(observation, (bot.rect.bottom - 10) / bounds[1])
+    observation = numpy.append(observation, (bot.rect.right + 10) / bounds[0])
+    observation = numpy.append(observation, bot.angle / 360)
+    observation = numpy.append(observation, bot.vec_x / bounds[0])
+    observation = numpy.append(observation, bot.vec_y / bounds[1])
     #print(observation)
     #print(bot.rect.top)
 
+    if (global_tick >= 5000):
+        gameOver = True
+        global_tick = 0
     terminated = gameOver
 
     return observation, reward, terminated, False, False
@@ -310,7 +325,7 @@ def reset():
         threading.Thread(target=spawnAsteroids).start()
 
     state = numpy.array([])
-    for _ in range(17):
+    for _ in range(47):
         state = numpy.append(state, 0)
 
     return state, 0
@@ -339,5 +354,6 @@ def main():
 
     pygame.quit()
 
-if __name__ == "__main__":
-    main()
+
+# if __name__ == "__main__":
+#     main()

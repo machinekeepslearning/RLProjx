@@ -123,8 +123,8 @@ def plot_durations(show_result=False):
     #plt.ylabel('Score')
     #plt.scatter(durations_t.numpy(), score_t.numpy())
     plt.xlabel('Episode')
-    plt.ylabel('duration')
-    plt.plot(durations_t.numpy())
+    plt.ylabel('Score')
+    plt.plot(score_t.numpy())
 
     # if len(durations_t) >= 10:
     #     means = durations_t.unfold(0, 10, 1).mean(1).view(-1)
@@ -190,15 +190,17 @@ for i_episode in range(num_episodes):
     state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
     #state = torch.moveaxis(state, 3, 1)
     #print(state.shape)
+    score = 0
     for t in count():
         action = select_action(state)
 
-        score = bot.score
-
         observation, reward, terminated, truncated, _ = step(action.item())
+
+        score += reward
+
         reward = torch.tensor([reward], device=device)
         done = terminated or truncated
-        print(reward)
+
         if terminated:
             next_state = None
         else:
@@ -221,11 +223,14 @@ for i_episode in range(num_episodes):
         if done:
             if t+1 > highest_duration:
                 highest_duration = t + 1
+            print(highest_duration)
             episode_durations.append(t + 1)
             episode_scores.append(score)
-            plot_durations()
+            if len(episode_durations) % 40 == 0:
+                plot_durations()
             print(f"lasted {t+1} ticks with a score of {score}")
             break
+
 
 print('Complete')
 plot_durations(show_result=True)
