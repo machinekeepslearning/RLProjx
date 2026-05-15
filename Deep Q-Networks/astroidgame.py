@@ -147,8 +147,8 @@ class Player(pygame.sprite.Sprite):
             #self.score -= 10
             self.lives -= 1
             colls[idx].kill()
-        # else:
-        #     self.score += 1e-5
+        else:
+            self.score += 1e-5
 
         keys = pygame.key.get_pressed()
 
@@ -202,12 +202,9 @@ class Player(pygame.sprite.Sprite):
                     self.observation_x[i] = coll_pos[0] / bounds[0]
                     self.observation_y[i] = coll_pos[1] / bounds[1]
                     #asteroid.kill()
-                    self.score -= 1 / (math.dist(self.rect.center, coll_pos) + 10)
                 else:
                     self.observation_x[i] = 0
                     self.observation_y[i] = 0
-                    self.score += 5e-5
-
 class Asteroid(pygame.sprite.Sprite):
     def __init__(self, radius):
         super().__init__()
@@ -289,7 +286,7 @@ def step(action):
 
         #swap buffers and increment clock
         pygame.display.flip()
-        clock.tick(fps)
+        #clock.tick(fps)
 
     reward = bot.score - old_score
     observation = numpy.array(bot.observation_x + bot.observation_y)
@@ -303,9 +300,9 @@ def step(action):
     #print(observation)
     #print(bot.rect.top)
 
-    if (global_tick >= 5000):
-        gameOver = True
-        global_tick = 0
+    # if (global_tick >= 5000):
+    #     gameOver = True
+    #     global_tick = 0
     terminated = gameOver
 
     return observation, reward, terminated, False, False

@@ -63,13 +63,13 @@ class DQN(nn.Module):
 
 
 BATCH_SIZE = 128
-#GAMMA = 0.99
-GAMMA = 0.1
+GAMMA = 0.99
+#GAMMA = 0.1
 EPS_START = 0.9
 EPS_END = 0.1
 EPS_DECAY = 2500
-#TAU = 0.005
-TAU = 0.1
+TAU = 0.005
+#TAU = 0.1
 #LR = 3e-4
 LR = 0.001
 
@@ -119,17 +119,18 @@ def plot_durations(show_result=False):
     else:
         plt.clf()
         plt.title('Training...')
-    #plt.xlabel('Duration')
+    plt.xlabel('Duration')
     #plt.ylabel('Score')
     #plt.scatter(durations_t.numpy(), score_t.numpy())
     plt.xlabel('Episode')
-    plt.ylabel('Score')
-    plt.plot(score_t.numpy())
+    plt.plot(durations_t.numpy())
+    # plt.ylabel('Score')
+    # plt.plot(score_t.numpy())
 
-    # if len(durations_t) >= 10:
-    #     means = durations_t.unfold(0, 10, 1).mean(1).view(-1)
-    #     means = torch.cat((torch.zeros(9), means))
-    #     plt.plot(means.numpy())
+    if len(durations_t) >= 10:
+        means = durations_t.unfold(0, 10, 1).mean(1).view(-1)
+        means = torch.cat((torch.zeros(9), means))
+        plt.plot(means.numpy())
 
     plt.pause(0.001)
     # if is_ipython:
@@ -211,14 +212,14 @@ for i_episode in range(num_episodes):
 
         state = next_state
 
-        if t % 10000 == 0:
-            optimize_model()
+        # if t % 10000 == 0:
+        #     optimize_model()
 
-        target_net_state_dict = target_net.state_dict()
-        policy_net_state_dict = policy_net.state_dict()
-        for key in policy_net_state_dict:
-            target_net_state_dict[key] = policy_net_state_dict[key] * TAU + target_net_state_dict[key] * (1 - TAU)
-        target_net.load_state_dict(target_net_state_dict)
+        # target_net_state_dict = target_net.state_dict()
+        # policy_net_state_dict = policy_net.state_dict()
+        # for key in policy_net_state_dict:
+        #     target_net_state_dict[key] = policy_net_state_dict[key] * TAU + target_net_state_dict[key] * (1 - TAU)
+        # target_net.load_state_dict(target_net_state_dict)
 
         if done:
             if t+1 > highest_duration:
@@ -226,8 +227,8 @@ for i_episode in range(num_episodes):
             print(highest_duration)
             episode_durations.append(t + 1)
             episode_scores.append(score)
-            if len(episode_durations) % 40 == 0:
-                plot_durations()
+            #if len(episode_durations) % 40 == 0:
+            plot_durations()
             print(f"lasted {t+1} ticks with a score of {score}")
             break
 
