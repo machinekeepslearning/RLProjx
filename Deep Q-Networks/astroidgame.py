@@ -96,8 +96,8 @@ class Player(pygame.sprite.Sprite):
             self.sensors[i] = pygame.transform.rotate(self.og_sensors, self.sensor_angles[i])
             self.sensor_rects[i] = self.sensors[i].get_rect()
             self.sensor_rects[i].center = (
-                self.rect.centerx + (self.sensor_size/2) * math.sin(self.sensor_angles[i] * math.pi / 180.0),
-                self.rect.centery + (self.sensor_size/2) * math.cos(self.sensor_angles[i] * math.pi / 180.0))
+                self.rect.centerx + (self.sensor_size / 2) * math.sin(self.sensor_angles[i] * math.pi / 180.0),
+                self.rect.centery + (self.sensor_size / 2) * math.cos(self.sensor_angles[i] * math.pi / 180.0))
 
         #RL variables
         self.num_observations = self.num_sensors
@@ -111,8 +111,8 @@ class Player(pygame.sprite.Sprite):
         self.rect.center = (int(bounds[0] / 2), int(bounds[1] / 2))
         for i in range(self.num_sensors):
             self.sensor_rects[i].center = (
-                self.rect.centerx + (self.sensor_size/2) * math.sin(self.sensor_angles[i] * math.pi / 180.0),
-                self.rect.centery + (self.sensor_size/2) * math.cos(self.sensor_angles[i] * math.pi / 180.0))
+                self.rect.centerx + (self.sensor_size / 2) * math.sin(self.sensor_angles[i] * math.pi / 180.0),
+                self.rect.centery + (self.sensor_size / 2) * math.cos(self.sensor_angles[i] * math.pi / 180.0))
 
     def update(self, action):
         global running, gameOver
@@ -133,8 +133,8 @@ class Player(pygame.sprite.Sprite):
                 self.rect.centery = bounds[1]
             for i in range(self.num_sensors):
                 self.sensor_rects[i].center = (
-                    self.rect.centerx + (self.sensor_size/2) * math.sin(self.sensor_angles[i] * math.pi / 180.0),
-                    self.rect.centery + (self.sensor_size/2) * math.cos(self.sensor_angles[i] * math.pi / 180.0))
+                    self.rect.centerx + (self.sensor_size / 2) * math.sin(self.sensor_angles[i] * math.pi / 180.0),
+                    self.rect.centery + (self.sensor_size / 2) * math.cos(self.sensor_angles[i] * math.pi / 180.0))
         if self.lives == 0:
             gameOver = True
             asteroids.empty()
@@ -205,6 +205,8 @@ class Player(pygame.sprite.Sprite):
                 else:
                     self.observation_x[i] = 0
                     self.observation_y[i] = 0
+
+
 class Asteroid(pygame.sprite.Sprite):
     def __init__(self, radius):
         super().__init__()
@@ -350,7 +352,6 @@ def main():
         i += 1
 
     pygame.quit()
-
 
 # if __name__ == "__main__":
 #     main()

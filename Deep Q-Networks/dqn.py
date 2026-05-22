@@ -7,7 +7,7 @@ from itertools import count
 
 from torch.nn import Sequential
 
-from astroidgame import *
+from pureastroidgame import *
 
 import torch
 import torch.nn as nn
@@ -190,7 +190,7 @@ for i_episode in range(num_episodes):
     state, _ = reset()
     state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
     #state = torch.moveaxis(state, 3, 1)
-    #print(state.shape)
+
     score = 0
     for t in count():
         action = select_action(state)
@@ -212,19 +212,18 @@ for i_episode in range(num_episodes):
 
         state = next_state
 
-        # if t % 10000 == 0:
-        #     optimize_model()
+        optimize_model()
 
-        # target_net_state_dict = target_net.state_dict()
-        # policy_net_state_dict = policy_net.state_dict()
-        # for key in policy_net_state_dict:
-        #     target_net_state_dict[key] = policy_net_state_dict[key] * TAU + target_net_state_dict[key] * (1 - TAU)
-        # target_net.load_state_dict(target_net_state_dict)
+        target_net_state_dict = target_net.state_dict()
+        policy_net_state_dict = policy_net.state_dict()
+        for key in policy_net_state_dict:
+            target_net_state_dict[key] = policy_net_state_dict[key] * TAU + target_net_state_dict[key] * (1 - TAU)
+        target_net.load_state_dict(target_net_state_dict)
+
 
         if done:
             if t+1 > highest_duration:
                 highest_duration = t + 1
-            print(highest_duration)
             episode_durations.append(t + 1)
             episode_scores.append(score)
             #if len(episode_durations) % 40 == 0:
