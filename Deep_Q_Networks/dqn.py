@@ -50,23 +50,22 @@ class DQN(nn.Module):
         super(DQN, self).__init__()
         self.sequence = Sequential(
             nn.Linear(n_observations, 128),
-            nn.Tanh(),
+            nn.LeakyReLU(),
             nn.Linear(128, 128),
-            nn.Tanh(),
+            nn.LeakyReLU(),
             nn.Linear(128, n_actions),
-            nn.ReLU()
+            nn.LeakyReLU(),
         )
 
     def forward(self, x):
         return self.sequence.forward(x)
 
 
-
 BATCH_SIZE = 128
 GAMMA = 0.99
 #GAMMA = 0.1
 EPS_START = 0.9
-EPS_END = 0.1
+EPS_END = 0.01
 EPS_DECAY = 2500
 TAU = 0.005
 #TAU = 0.1
@@ -104,33 +103,32 @@ def select_action(state):
             return policy_net(state).max(1).indices.view(1, 1)
     else:
         #return torch.tensor([[env.action_space.sample()]], device=device, dtype=torch.long)
-        return torch.tensor([[bot.action_space[random.randint(0, n_actions-1)]]], device=device, dtype=torch.long)
+        return torch.tensor([[bot.action_space[random.randint(0, n_actions - 1)]]], device=device, dtype=torch.long)
 
 
 episode_durations = []
-episode_scores = []
+episode_rewards = []
+
 
 def plot_durations(show_result=False):
     plt.figure(1)
     durations_t = torch.tensor(episode_durations, dtype=torch.float)
-    score_t = torch.tensor(episode_scores, dtype=torch.float)
+    score_t = torch.tensor(episode_rewards, dtype=torch.float)
     if show_result:
         plt.title('Result')
     else:
         plt.clf()
         plt.title('Training...')
-    plt.xlabel('Duration')
-    #plt.ylabel('Score')
-    #plt.scatter(durations_t.numpy(), score_t.numpy())
-    plt.xlabel('Episode')
-    plt.plot(durations_t.numpy())
-    # plt.ylabel('Score')
-    # plt.plot(score_t.numpy())
 
-    if len(durations_t) >= 10:
-        means = durations_t.unfold(0, 10, 1).mean(1).view(-1)
-        means = torch.cat((torch.zeros(9), means))
-        plt.plot(means.numpy())
+    plt.xlabel('Episode')
+    plt.ylabel('Reward')
+    #plt.plot(durations_t.numpy())
+    plt.plot(score_t.numpy())
+
+    # if len(durations_t) >= 10:
+    #     means = durations_t.unfold(0, 10, 1).mean(1).view(-1)
+    #     means = torch.cat((torch.zeros(9), means))
+    #     plt.plot(means.numpy())
 
     plt.pause(0.001)
     # if is_ipython:
@@ -220,17 +218,13 @@ for i_episode in range(num_episodes):
             target_net_state_dict[key] = policy_net_state_dict[key] * TAU + target_net_state_dict[key] * (1 - TAU)
         target_net.load_state_dict(target_net_state_dict)
 
-
         if done:
-            if t+1 > highest_duration:
-                highest_duration = t + 1
             episode_durations.append(t + 1)
-            episode_scores.append(score)
+            episode_rewards.append(score / (t + 1))
             #if len(episode_durations) % 40 == 0:
             plot_durations()
-            print(f"lasted {t+1} ticks with a score of {score}")
+            print(f"lasted {t + 1} ticks with a score of {score}")
             break
-
 
 print('Complete')
 plot_durations(show_result=True)

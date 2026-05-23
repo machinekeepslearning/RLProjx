@@ -8,7 +8,7 @@ import keyboard
 import time
 
 debug = False
-render = False
+render = True
 running = True
 gameover = False
 
@@ -59,21 +59,24 @@ def spawnAsteroids():
     global globalId
 
     while running:
-        asteroids.update({globalId: Asteroid(
-            speed=random.randint(150, 200),
-            radius=random.randint(10, 30),
-            id=globalId)})
-        globalId += 1
-        time.sleep(2)
+        if len(asteroids) < 10:
+            asteroids.update({globalId: Asteroid(
+                speed=random.randint(300, 350),
+                radius=random.randint(10, 30),
+                id=globalId)})
+            globalId += 1
+        time.sleep(1)
+
 
 def spawnSingleAsteroid():
     global globalId
 
     asteroids.update({globalId: Asteroid(
-        speed=random.randint(50, 100),
+        speed=random.randint(200, 250),
         radius=random.randint(10, 30),
         id=globalId)})
     globalId += 1
+
 
 class Asteroid:
     def __init__(self, speed, radius, id):
@@ -98,9 +101,9 @@ class Asteroid:
         self.dir = random.uniform(0, 2 * math.pi)
 
         chase_num = random.randint(1, 10)
-        if chase_num < 6:
+        if chase_num < 8:
             disp = (bot.center - self.center)
-            self.velocity = disp/math.sqrt(numpy.dot(disp, disp)) * self.speed
+            self.velocity = disp / math.sqrt(numpy.dot(disp, disp)) * self.speed
         else:
             self.velocity = numpy.array([self.speed * math.cos(self.dir), self.speed * math.sin(self.dir)])
 
@@ -122,11 +125,12 @@ class Asteroid:
 
 
 class Player:
-    def __init__(self, radius, speed):
+    def __init__(self, radius, speed, angular_speed):
         self.max_lives = 10
         self.lives = self.max_lives
         self.angle = 0
         self.speed = speed * 5e-4
+        self.angular_speed = angular_speed * 5e-4
         self.center = numpy.array([(xbounds[1] - xbounds[0]) / 2, (ybounds[1] - ybounds[0]) / 2])
         self.radius = radius
         self.velocity = numpy.zeros((2,))
@@ -144,10 +148,12 @@ class Player:
         pygame.draw.circle(screen, "blue", (int(self.center[0]), int(self.center[1])), self.radius)
 
     def reset(self):
+        self.center = numpy.array([bounds[0] / 2, bounds[1] / 2])
+        self.reward = 0
         self.lives = self.max_lives
         self.score = 0
-        self.center = numpy.array([bounds[0] / 2, bounds[1] / 2])
         self.angle = 0
+
     def computeInputs(self):
         global gameover
 
@@ -158,10 +164,10 @@ class Player:
         inputs[32] = self.radius / bounds[0]
         inputs[33] = self.velocity[0] / bounds[0]
         inputs[34] = self.velocity[1] / bounds[1]
-        inputs[35] = (xbounds[0] - self.center[0])/bounds[0]
-        inputs[36] = (xbounds[1] - self.center[0])/bounds[0]
-        inputs[37] = (ybounds[0] - self.center[1])/bounds[1]
-        inputs[38] = (ybounds[1] - self.center[1])/bounds[1]
+        inputs[35] = (xbounds[0] - self.center[0]) / bounds[0]
+        inputs[36] = (xbounds[1] - self.center[0]) / bounds[0]
+        inputs[37] = (ybounds[0] - self.center[1]) / bounds[1]
+        inputs[38] = (ybounds[1] - self.center[1]) / bounds[1]
 
         asteroids_pos = numpy.empty((0, 2))
         asteroid_radii = numpy.empty((0,))
@@ -199,43 +205,45 @@ class Player:
                 self.center[1] < ybounds[0] or
                 self.center[1] > ybounds[1]):
             self.lives -= 5
-            self.score -= 10
-            bot.center[0] += 1000 * bot.velocity[0]
-            bot.center[1] -= 1000 * bot.velocity[1]
+            self.reward = -10
+            self.center[0] += 1000 * bot.velocity[0]
+            self.center[1] -= 1000 * bot.velocity[1]
             print(f"Hit border, {self.lives} Lives Remaining")
-
         elif sum(self.collisions) > 0:
             self.lives -= sum(self.collisions)
-            self.score -= 2 * sum(self.collisions)
+            self.reward = -2 * sum(self.collisions)
             for i in range(len(self.coll_keys)):
                 if self.collisions[i] == 1:
                     asteroids.pop(self.coll_keys[i], None)
             print(f"Hit Asteroid, {self.lives} Lives Remaining")
         else:
-            self.score += 0.01
+            self.reward = 0.01
+
+        self.score += self.reward
 
         if self.lives < 1:
             gameover = True
 
-        self.reward = self.score - self.old_score
         return inputs
 
     def update(self, action):
         global gameover
-
-        self.old_score = self.score
 
         self.velocity[0] = self.speed * math.cos(self.angle)
         self.velocity[1] = self.speed * math.sin(self.angle)
 
         if action == 0:
             self.center += self.velocity
+            print("Moving forward")
         if action == 1:
             self.center -= self.velocity
+            print("Moving backward")
         if action == 2:
-            self.angle += -1e-3
+            self.angle += self.angular_speed
+            print("Rotating clockwise")
         if action == 3:
-            self.angle += 1e-3
+            self.angle -= self.angular_speed
+            print("Rotating counter clockwise")
 
         # if keyboard.is_pressed('w'):
         #     self.center[0] += self.speed * math.cos(self.angle)
@@ -257,14 +265,13 @@ class Player:
 #speed is measured in pixels per second
 
 
-bot = Player(20.0, 170)
+bot = Player(20.0, 250, 200)
+
+threading.Thread(target=spawnAsteroids).start()
 
 
 def step(action):
     global running
-
-    if len(asteroids) < 10:
-        spawnSingleAsteroid()
 
     if render:
         pygame.display.flip()
@@ -300,6 +307,7 @@ def reset():
     inputs = numpy.zeros((39,))
 
     return inputs, 0
+
 
 # threading.Thread(target=spawnAsteroids).start()
 
