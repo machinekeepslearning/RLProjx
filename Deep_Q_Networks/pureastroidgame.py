@@ -61,7 +61,7 @@ def spawnAsteroids():
     while running:
         if len(asteroids) < 10:
             asteroids.update({globalId: Asteroid(
-                speed=random.randint(300, 350),
+                speed=random.randint(700, 800),
                 radius=random.randint(10, 30),
                 id=globalId)})
             globalId += 1
@@ -135,6 +135,7 @@ class Player:
         self.radius = radius
         self.velocity = numpy.zeros((2,))
         self.action_space = (0, 1, 2, 3)
+        self.direction_point = self.center + self.radius * numpy.array([math.cos(self.angle), math.sin(self.angle)])
 
         self.collisions = []
         self.sort_indices = []
@@ -145,7 +146,9 @@ class Player:
         self.score = 0
 
     def render(self):
+        self.direction_point = self.center + self.radius * numpy.array([math.cos(self.angle), math.sin(self.angle)])
         pygame.draw.circle(screen, "blue", (int(self.center[0]), int(self.center[1])), self.radius)
+        pygame.draw.line(screen, "yellow", self.center, self.direction_point)
 
     def reset(self):
         self.center = numpy.array([bounds[0] / 2, bounds[1] / 2])
@@ -234,16 +237,16 @@ class Player:
 
         if action == 0:
             self.center += self.velocity
-            print("Moving forward")
+            #print("Moving forward")
         if action == 1:
             self.center -= self.velocity
-            print("Moving backward")
+            #print("Moving backward")
         if action == 2:
             self.angle += self.angular_speed
-            print("Rotating clockwise")
+            #print("Rotating clockwise")
         if action == 3:
             self.angle -= self.angular_speed
-            print("Rotating counter clockwise")
+            #print("Rotating counter clockwise")
 
         # if keyboard.is_pressed('w'):
         #     self.center[0] += self.speed * math.cos(self.angle)
@@ -265,7 +268,7 @@ class Player:
 #speed is measured in pixels per second
 
 
-bot = Player(20.0, 250, 200)
+bot = Player(20.0, 900, 100)
 
 threading.Thread(target=spawnAsteroids).start()
 
