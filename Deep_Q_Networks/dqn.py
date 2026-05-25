@@ -68,6 +68,8 @@ TAU = 0.005
 #LR = 3e-4
 LR = 0.001
 
+frame_skip = 6
+
 preload = False
 
 # n_actions = env.action_space.n
@@ -199,16 +201,21 @@ start = time.time()
 
 for i_episode in range(num_episodes):
 
-    #state, info = env.reset()
     state, _ = reset()
     state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
-    #state = torch.moveaxis(state, 3, 1)
+
+    step_start = time.time()
 
     score = 0
     for t in count():
+        global observation, d_reward, terminated, truncated
+
         action = select_action(state)
 
-        observation, reward, terminated, truncated, _ = step(action.item())
+        reward = 0
+        for i in range(frame_skip):
+            observation, d_reward, terminated, truncated, _ = step(action.item())
+            reward += d_reward
 
         score += reward
 
@@ -233,6 +240,8 @@ for i_episode in range(num_episodes):
         target_net.load_state_dict(target_net_state_dict)
 
         if done or terminate:
+            end = time.time() - step_start
+            print(f"Average seconds per tick: {(t + 1)/end}")
             episode_durations.append(t + 1)
             episode_rewards.append(score / (t + 1))
             plot_durations()
