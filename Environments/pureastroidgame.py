@@ -8,7 +8,7 @@ import keyboard
 import time
 
 debug = False
-render = True
+render = False
 running = True
 gameover = False
 
@@ -22,6 +22,8 @@ bounds = (xbounds[1], ybounds[1])
 
 globalId = 0
 action_space = (0, 1, 2, 3, 4)
+
+reward_scale = 20
 
 if render:
     pygame.init()
@@ -142,7 +144,7 @@ class Asteroid:
 
         for i in range(len(collisions)):
             if collisions[i] == 1:
-                bot.score += 5
+                bot.score += 50 * reward_scale
                 lasers.pop(laser_keys[i])
                 asteroids.pop(self.id)
                 break
@@ -271,19 +273,19 @@ class Player:
                 self.center[1] < ybounds[0] or
                 self.center[1] > ybounds[1]):
             self.lives -= 5
-            self.score -= 100
+            self.score -= 500 * reward_scale
             self.center[0] += 1000 * bot.velocity[0]
             self.center[1] -= 1000 * bot.velocity[1]
-            print(f"Hit border, {self.lives} Lives Remaining")
+            #print(f"Hit border, {self.lives} Lives Remaining")
         elif sum(self.collisions) > 0:
             self.lives -= sum(self.collisions)
-            self.score -= 20 * sum(self.collisions)
+            self.score -= 100 * sum(self.collisions) * reward_scale
             for i in range(len(self.roid_coll_keys)):
                 if self.collisions[i] == 1:
                     asteroids.pop(self.roid_coll_keys[i], None)
-            print(f"Hit Asteroid, {self.lives} Lives Remaining")
+            #print(f"Hit Asteroid, {self.lives} Lives Remaining")
         else:
-            self.score += 0.01
+            self.score += 0.1 * reward_scale
 
         self.reward = self.score - self.old_score
 

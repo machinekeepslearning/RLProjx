@@ -86,7 +86,7 @@ else:
     target_net.load_state_dict(policy_net.state_dict())
 
 optimizer = optim.SGD(policy_net.parameters(), lr=LR)
-memory = ReplayMemory(10000)
+memory = ReplayMemory(500000)
 
 steps_done = 0
 
@@ -138,10 +138,10 @@ def plot_durations(show_result=False):
     #plt.plot(durations_t.numpy())
     plt.plot(score_t.numpy())
 
-    # if len(durations_t) >= 10:
-    #     means = durations_t.unfold(0, 10, 1).mean(1).view(-1)
-    #     means = torch.cat((torch.zeros(9), means))
-    #     plt.plot(means.numpy())
+    if len(durations_t) >= 10:
+        means = score_t.unfold(0, 10, 1).mean(1).view(-1)
+        means = torch.cat((torch.zeros(9), means))
+        plt.plot(means.numpy())
 
     plt.pause(0.001)
     # if is_ipython:
