@@ -7,8 +7,8 @@ import numpy
 import keyboard
 import time
 
-debug = True
-render = True
+debug = False
+render = False
 running = True
 gameover = False
 
@@ -21,7 +21,7 @@ ybounds = [0, 800]
 bounds = (xbounds[1], ybounds[1])
 
 globalId = 0
-action_space = (0, 1, 2, 3)
+action_space = (0, 1, 2, 3, 4)
 
 if render:
     pygame.init()
