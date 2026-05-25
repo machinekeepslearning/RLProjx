@@ -405,7 +405,7 @@ def reset():
         del asteroids[keys[i]]
     laser_keys = list(lasers.keys())
     for i in range(len(laser_keys)):
-        del laser_keys[keys[i]]
+        del lasers[laser_keys[i]]
 
     inputs = numpy.zeros((bot.num_inputs,))
 
