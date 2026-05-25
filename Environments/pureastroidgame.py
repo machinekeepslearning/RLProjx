@@ -8,7 +8,7 @@ import keyboard
 import time
 
 debug = False
-render = False
+render = True
 running = True
 gameover = False
 
@@ -158,7 +158,7 @@ class Player:
         self.center = numpy.array([(xbounds[1] - xbounds[0]) / 2, (ybounds[1] - ybounds[0]) / 2])
         self.radius = radius
         self.velocity = numpy.zeros((2,))
-        self.action_space = (0, 1, 2, 3)
+        self.action_space = (0, 1, 2, 3, 4)
         self.direction_point = self.center + self.radius * numpy.array([math.cos(self.angle), math.sin(self.angle)])
         self.num_inputs = 9 + 30 + 25
 
@@ -199,7 +199,7 @@ class Player:
     def computeInputs(self):
         global gameover
 
-        inputs = numpy.zeros((9 + 30 + 25,))
+        inputs = numpy.zeros((self.num_inputs,))
 
         inputs[self.num_inputs - 9] = self.center[0] / bounds[0]
         inputs[self.num_inputs - 8] = self.center[1] / bounds[1]
