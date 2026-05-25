@@ -1,5 +1,4 @@
 import numpy
+import keyboard
 
-test = {1: "hi", 2: "bye"}
-
-print(test[numpy.int64(1)])
+a = numpy.array([1, 2, 3, 4, 5, 6])

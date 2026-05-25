@@ -1,22 +1,18 @@
-import math
-import random
-import matplotlib
 import matplotlib.pyplot as plt
 from collections import namedtuple, deque
 from itertools import count
 
 from torch.nn import Sequential
 
-from pureastroidgame import *
+from Environments.pureastroidgame import *
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
+import time
+import keyboard
 
 plt.ion()
-
-print(torch.xpu.is_available())
 
 device = torch.device(
     "xpu" if torch.xpu.is_available() else
@@ -72,6 +68,8 @@ TAU = 0.005
 #LR = 3e-4
 LR = 0.001
 
+preload = False
+
 # n_actions = env.action_space.n
 n_actions = len(bot.action_space)
 
@@ -79,16 +77,31 @@ n_actions = len(bot.action_space)
 state, _ = reset()
 n_observations = len(state)
 
-#print(state.shape)
-
 policy_net = DQN(n_observations, n_actions).to(device)
 target_net = DQN(n_observations, n_actions).to(device)
-target_net.load_state_dict(policy_net.state_dict())
+if preload:
+    policy_net.load_state_dict(torch.load("asteroid_policy.pt", weights_only=True))
+    target_net.load_state_dict(torch.load("asteroid_target.pt", weights_only=True))
+else:
+    target_net.load_state_dict(policy_net.state_dict())
 
 optimizer = optim.SGD(policy_net.parameters(), lr=LR)
 memory = ReplayMemory(10000)
 
 steps_done = 0
+
+terminate = False
+
+def termTraining():
+    global terminate
+
+    torch.save(policy_net.state_dict(), "asteroid_policy.pt")
+    torch.save(target_net.state_dict(), "asteroid_target.pt")
+
+    terminate = True
+
+
+keyboard.add_hotkey('q', termTraining)
 
 
 def select_action(state):
@@ -178,9 +191,11 @@ def optimize_model():
 if torch.cuda.is_available() or torch.backends.mps.is_available():
     num_episodes = 600
 else:
-    num_episodes = 500
+    num_episodes = 700
 
 highest_duration = 0
+
+start = time.time()
 
 for i_episode in range(num_episodes):
 
@@ -204,7 +219,6 @@ for i_episode in range(num_episodes):
             next_state = None
         else:
             next_state = torch.tensor(observation, dtype=torch.float32, device=device).unsqueeze(0)
-            #next_state = torch.moveaxis(next_state, 3, 1)
 
         memory.push(state, action, next_state, reward)
 
@@ -218,13 +232,16 @@ for i_episode in range(num_episodes):
             target_net_state_dict[key] = policy_net_state_dict[key] * TAU + target_net_state_dict[key] * (1 - TAU)
         target_net.load_state_dict(target_net_state_dict)
 
-        if done:
+        if done or terminate:
             episode_durations.append(t + 1)
             episode_rewards.append(score / (t + 1))
-            #if len(episode_durations) % 40 == 0:
             plot_durations()
             print(f"lasted {t + 1} ticks with a score of {score}")
             break
+    if terminate:
+        break
+
+print(f"Training took {time.time() - start} seconds")
 
 print('Complete')
 plot_durations(show_result=True)
