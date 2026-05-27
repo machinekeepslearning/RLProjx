@@ -1,13 +1,20 @@
 import numpy
 import keyboard
+import matplotlib.pyplot as plt
 
-a = numpy.array([1, 2, 3, 4, 5, 6])
+def f1(x):
+    return x+5
 
+def f2(x):
+    return numpy.square(x)
 
-for i in range(10):
-    global local
+xaxis = numpy.array([1, 2, 3, 4, 5, 6, 7])
 
-    for j in range(5):
-        local = j+10
+fig, (ax1, ax2) = plt.subplots(2, 1)
 
-    print(local)
+ax1.plot(xaxis, f1(xaxis))
+
+ax2.plot(xaxis, f2(xaxis))
+
+plt.tight_layout()
+plt.show()

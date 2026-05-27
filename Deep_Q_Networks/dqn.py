@@ -61,14 +61,14 @@ BATCH_SIZE = 128
 GAMMA = 0.99
 #GAMMA = 0.1
 EPS_START = 0.9
-EPS_END = 0.01
-EPS_DECAY = 25000
+EPS_END = 0.05
+EPS_DECAY = 60000
 TAU = 0.005
 #TAU = 0.1
 #LR = 3e-4
-LR = 0.001
+LR = 1e-3
 
-frame_skip = 6
+frame_skip = 4
 
 preload = False
 
@@ -88,7 +88,7 @@ else:
     target_net.load_state_dict(policy_net.state_dict())
 
 optimizer = optim.SGD(policy_net.parameters(), lr=LR)
-memory = ReplayMemory(500000)
+memory = ReplayMemory(100000)
 
 steps_done = 0
 
@@ -105,13 +105,21 @@ def termTraining():
 
 keyboard.add_hotkey('q', termTraining)
 
+notified = False
+
+global_start = time.time()
 
 def select_action(state):
-    global steps_done
+    global steps_done, notified
     sample = random.random()
     eps_threshold = EPS_END + (EPS_START - EPS_END) * \
                     math.exp(-1. * steps_done / EPS_DECAY)
     steps_done += 1
+    if eps_threshold < 0.05 and not notified:
+        print(f"Policy Mode at {time.time() - global_start}")
+        print(f"Episode: {len(episode_durations)}")
+        notified = True
+
     if sample > eps_threshold:
         with torch.no_grad():
 
@@ -124,34 +132,37 @@ def select_action(state):
 episode_durations = []
 episode_rewards = []
 
-
+fig, (ax1, ax2) = plt.subplots(2, 1)
+fig.set_size_inches(8, 6.4, True)
+plt.tight_layout()
 def plot_durations(show_result=False):
-    plt.figure(1)
+    global ax1, ax2
+
     durations_t = torch.tensor(episode_durations, dtype=torch.float)
     score_t = torch.tensor(episode_rewards, dtype=torch.float)
-    if show_result:
-        plt.title('Result')
-    else:
-        plt.clf()
-        plt.title('Training...')
+    # if show_result:
+    #     plt.title('Result')
+    # else:
+    #     plt.clf()
+    #     plt.title('Training...')
 
-    plt.xlabel('Episode')
-    plt.ylabel('Reward')
+    ax1.set_xlabel('Episode')
+    ax1.set_ylabel('Reward')
+    ax2.set_xlabel('Episode')
+    ax2.set_ylabel('Duration')
     #plt.plot(durations_t.numpy())
-    plt.plot(score_t.numpy())
+    ax1.plot(score_t.numpy())
+    ax2.plot(durations_t.numpy())
 
-    if len(durations_t) >= 10:
+    if len(score_t) >= 10:
         means = score_t.unfold(0, 10, 1).mean(1).view(-1)
         means = torch.cat((torch.zeros(9), means))
-        plt.plot(means.numpy())
+        ax1.plot(means.numpy())
 
+        means = durations_t.unfold(0, 10, 1).mean(1).view(-1)
+        means = torch.cat((torch.zeros(9), means))
+        ax2.plot(means.numpy())
     plt.pause(0.001)
-    # if is_ipython:
-    #     if not show_result:
-    #         display.display(plt.gcf())
-    #         display.clear_output(wait=True)
-    #     else:
-    #         display.display(plt.gcf())
 
 
 def optimize_model():
@@ -241,18 +252,21 @@ for i_episode in range(num_episodes):
 
         if done or terminate:
             end = time.time() - step_start
-            print(f"Average seconds per tick: {(t + 1)/end}")
+            #print(f"Average seconds per tick: {(t + 1)/end}")
             episode_durations.append(t + 1)
             episode_rewards.append(score / (t + 1))
             plot_durations()
-            print(f"lasted {t + 1} ticks with a score of {score}")
+            #print(f"lasted {t + 1} ticks with a score of {score}")
             break
     if terminate:
         break
 
+print('Complete')
 print(f"Training took {time.time() - start} seconds")
 
-print('Complete')
 plot_durations(show_result=True)
+
+plt.savefig("dqn_fire.png")
+
 plt.ioff()
 plt.show()
