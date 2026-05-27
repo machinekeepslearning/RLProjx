@@ -66,7 +66,7 @@ EPS_DECAY = 60000
 TAU = 0.005
 #TAU = 0.1
 #LR = 3e-4
-LR = 1e-3
+LR = 5e-4
 
 frame_skip = 4
 

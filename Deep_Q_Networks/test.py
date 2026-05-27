@@ -8,13 +8,8 @@ def f1(x):
 def f2(x):
     return numpy.square(x)
 
-xaxis = numpy.array([1, 2, 3, 4, 5, 6, 7])
+test = numpy.zeros((5,))
 
-fig, (ax1, ax2) = plt.subplots(2, 1)
+test[0:2] = 1
 
-ax1.plot(xaxis, f1(xaxis))
-
-ax2.plot(xaxis, f2(xaxis))
-
-plt.tight_layout()
-plt.show()
+print(test)
