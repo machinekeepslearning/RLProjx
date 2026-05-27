@@ -224,6 +224,7 @@ for i_episode in range(num_episodes):
     step_start = time.time()
 
     score = 0
+    total_reward = 0
     for t in count():
         global observation, d_reward, terminated, truncated
 
@@ -233,7 +234,7 @@ for i_episode in range(num_episodes):
         for i in range(frame_skip):
             observation, d_reward, terminated, truncated, _ = step(action.item())
             reward += d_reward
-
+        total_reward += reward
         score += reward
 
         reward = torch.tensor([reward], device=device)
@@ -260,7 +261,7 @@ for i_episode in range(num_episodes):
             end = time.time() - step_start
             #print(f"Average seconds per tick: {(t + 1)/end}")
             episode_durations.append(t + 1)
-            episode_rewards.append(score / (t + 1))
+            episode_rewards.append(total_reward)
             plot_durations()
             #print(f"lasted {t + 1} ticks with a score of {score}")
             break

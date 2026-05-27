@@ -8,8 +8,8 @@ import keyboard
 import time
 from helpers.collision_helpers import *
 
-debug = True
-render = debug or False
+debug = False
+render = False
 running = True
 gameover = False
 
@@ -27,7 +27,8 @@ def env_render():
     screen = pygame.display.set_mode(bounds)
     screen.fill("black")
 
-env_render()
+if debug:
+    env_render()
 
 cooled_down = True
 
@@ -132,7 +133,8 @@ class Asteroid(Circle):
 
         for i in range(len(collisions)):
             if collisions[i] == 1:
-                bot.score += 1 * reward_scale
+                bot.reward += 1 * reward_scale
+                print(f"Asteroid Destroyed! Current Reward: {bot.reward}")
                 lasers.pop(laser_keys[i])
                 asteroids.pop(self.id)
                 break
@@ -263,19 +265,17 @@ class Player(Circle):
                 self.center[1] < 0 or
                 self.center[1] > bounds[1]):
             self.lives -= 2
-            self.score -= 4 * reward_scale
+            self.reward -= 4 * reward_scale
             self.center[0] = bounds[0] / 2
             self.center[1] = bounds[1] / 2
-            #print(f"Hit border, {self.lives} Lives Remaining")
+            print(f"Border Hit, current reward: {self.reward}")
         elif sum(self.collisions) > 0:
             self.lives -= sum(self.collisions)
             for i in range(len(self.roid_coll_keys)):
                 if self.collisions[i] == 1:
                     asteroids.pop(self.roid_coll_keys[i], None)
-                    self.score -= 2 * reward_scale
-            #print(f"Hit Asteroid, {self.lives} Lives Remaining")
-
-        self.reward = self.score - self.old_score
+                    self.reward -= 2 * reward_scale
+            print(f"Hit Asteroids, current reward: {self.reward}")
 
         if self.lives < 1:
             gameover = True
@@ -285,7 +285,7 @@ class Player(Circle):
     def update(self, action):
         global gameover
 
-        self.old_score = self.score
+        self.reward = 0
 
         self.velocity[0] = self.speed * math.cos(self.angle)
         self.velocity[1] = self.speed * math.sin(self.angle)
