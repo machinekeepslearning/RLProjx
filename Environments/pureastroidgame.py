@@ -8,12 +8,16 @@ import keyboard
 import time
 from helpers.collision_helpers import *
 
-debug = False
-render = False
+debug = True
+render = debug or False
 running = True
 gameover = False
 
 screen = None
+
+xbounds = [0, 800]
+ybounds = [0, 800]
+bounds = (xbounds[1], ybounds[1])
 
 def env_render():
     global render, screen
@@ -23,19 +27,19 @@ def env_render():
     screen = pygame.display.set_mode(bounds)
     screen.fill("black")
 
+env_render()
 
 cooled_down = True
 
 asteroids = {}
 lasers = {}
-xbounds = [0, 800]
-ybounds = [0, 800]
-bounds = (xbounds[1], ybounds[1])
 
 globalId = 0
 action_space = (0, 1, 2, 3, 4)
 
 reward_scale = 1
+
+
 
 
 def cooldown():
@@ -146,7 +150,7 @@ class Player(Circle):
         self.action_space = (0, 1, 2, 3, 4)
         self.direction_point = self.center + self.radius * numpy.array([math.cos(self.angle), math.sin(self.angle)])
         #Self data + asteroid data + laser data
-        self.num_inputs = 10 + 30 + 10
+        self.num_inputs = 8 + 30 + 10
 
         self.asteroids_pos = numpy.empty((0, 2))
         self.collisions = []
@@ -192,16 +196,14 @@ class Player(Circle):
 
         inputs = numpy.zeros((self.num_inputs,)) - 1
 
-        inputs[self.num_inputs - 10] = self.angle / (2 * math.pi)
-        inputs[self.num_inputs - 9] = self.center[0] / bounds[0]
-        inputs[self.num_inputs - 8] = self.center[1] / bounds[1]
-        inputs[self.num_inputs - 7] = self.radius / self.radius
-        inputs[self.num_inputs - 6] = self.velocity[0] / self.speed
-        inputs[self.num_inputs - 5] = self.velocity[1] / self.speed
-        inputs[self.num_inputs - 4] = (xbounds[0] - self.center[0]) / bounds[0]
-        inputs[self.num_inputs - 3] = (xbounds[1] - self.center[0]) / bounds[0]
-        inputs[self.num_inputs - 2] = (ybounds[0] - self.center[1]) / bounds[1]
-        inputs[self.num_inputs - 1] = (ybounds[1] - self.center[1]) / bounds[1]
+        inputs[self.num_inputs - 8] = self.angle / (2 * math.pi)
+        inputs[self.num_inputs - 7] = self.center[0] / bounds[0]
+        inputs[self.num_inputs - 6] = self.center[1] / bounds[1]
+        inputs[self.num_inputs - 5] = self.radius / self.radius
+        inputs[self.num_inputs - 4] = self.velocity[0] / self.speed
+        inputs[self.num_inputs - 3] = self.velocity[1] / self.speed
+        inputs[self.num_inputs - 2] = (self.center[0] - bounds[0]) / bounds[0]
+        inputs[self.num_inputs - 1] = (self.center[1] - bounds[1]) / bounds[1]
 
         # Provide the distance, positions, radius, x-velocity, y-velocity
         # Identify top 5 nearest asteroids and if there are less than 5 asteroids, we set the input to -1
@@ -256,10 +258,10 @@ class Player(Circle):
             inputs[i + 38] = laser_list[idx].velocity[1] / self.speed
 
         #Make sure to compute inputs before updating other things
-        if (self.center[0] < xbounds[0] or
-                self.center[0] > xbounds[1] or
-                self.center[1] < ybounds[0] or
-                self.center[1] > ybounds[1]):
+        if (self.center[0] < 0 or
+                self.center[0] > bounds[0] or
+                self.center[1] < 0 or
+                self.center[1] > bounds[1]):
             self.lives -= 2
             self.score -= 4 * reward_scale
             self.center[0] = bounds[0] / 2
@@ -267,10 +269,10 @@ class Player(Circle):
             #print(f"Hit border, {self.lives} Lives Remaining")
         elif sum(self.collisions) > 0:
             self.lives -= sum(self.collisions)
-            self.score -= 2 * sum(self.collisions) * reward_scale
             for i in range(len(self.roid_coll_keys)):
                 if self.collisions[i] == 1:
                     asteroids.pop(self.roid_coll_keys[i], None)
+                    self.score -= 2 * reward_scale
             #print(f"Hit Asteroid, {self.lives} Lives Remaining")
 
         self.reward = self.score - self.old_score

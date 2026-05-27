@@ -12,6 +12,8 @@ import torch.optim as optim
 import time
 import keyboard
 
+#env_render()
+
 plt.ion()
 
 device = torch.device(
@@ -94,6 +96,7 @@ steps_done = 0
 
 terminate = False
 
+
 def termTraining():
     global terminate
 
@@ -108,6 +111,7 @@ keyboard.add_hotkey('q', termTraining)
 notified = False
 
 global_start = time.time()
+
 
 def select_action(state):
     global steps_done, notified
@@ -135,6 +139,8 @@ episode_rewards = []
 fig, (ax1, ax2) = plt.subplots(2, 1)
 fig.set_size_inches(8, 6.4, True)
 plt.tight_layout()
+
+
 def plot_durations(show_result=False):
     global ax1, ax2
 

@@ -50,7 +50,7 @@ class Bullet(pygame.sprite.Sprite):
     def __init__(self, rect, angle):
         super().__init__()
         self.angle = angle
-        self.image = pygame.image.load("bullet.png")
+        self.image = pygame.image.load("../assets/bullet.png")
         self.rect = self.image.get_rect(center=rect.center)
         self.image = pygame.transform.rotate(self.image, angle)
         self.rect = self.image.get_rect(center=self.rect.center)
@@ -68,7 +68,7 @@ class Player(pygame.sprite.Sprite):
         super().__init__()
         self.accel = accel
         self.speed = 0
-        self.ogimage = pygame.image.load("ship.png")
+        self.ogimage = pygame.image.load("../assets/ship.png")
         self.ogimage = pygame.transform.scale(self.ogimage, (width, height))
         self.image = self.ogimage
         self.rect = self.image.get_rect(center=(bounds[0] / 2, bounds[1] / 2))
@@ -84,7 +84,7 @@ class Player(pygame.sprite.Sprite):
         #sensors
         self.num_sensors = 20
         self.sensor_size = 50
-        self.og_sensors = pygame.transform.scale(pygame.image.load("sensor_blue.png"), (1, self.sensor_size))
+        self.og_sensors = pygame.transform.scale(pygame.image.load("../assets/sensor_blue.png"), (1, self.sensor_size))
         #self.og_sensors = pygame.image.load("sensor_blue.png")
         self.sensors = [None] * self.num_sensors
         self.sensor_angles = [0] * self.num_sensors
