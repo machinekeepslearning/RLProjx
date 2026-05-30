@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 from collections import namedtuple, deque
 from itertools import count
 
+import numpy
 from torch.nn import Sequential
 
 from Environments.pureastroidgame import *
@@ -12,7 +13,8 @@ import torch.optim as optim
 import time
 import keyboard
 
-#env_render()
+policy_path = "asteroid_policy.pt"
+target_path = "asteroid_target.pt"
 
 plt.ion()
 
@@ -58,19 +60,22 @@ class DQN(nn.Module):
     def forward(self, x):
         return self.sequence.forward(x)
 
+episode_durations = []
+episode_rewards = []
+avg_q_values = []
 
 BATCH_SIZE = 128
 GAMMA = 0.99
 #GAMMA = 0.1
 EPS_START = 0.9
-EPS_END = 0.05
-EPS_DECAY = 60000
+EPS_END = 0.01
+EPS_DECAY = 100000
 TAU = 0.005
 #TAU = 0.1
 #LR = 3e-4
 LR = 5e-4
 
-frame_skip = 4
+frame_skip = 1
 
 preload = False
 
@@ -84,24 +89,24 @@ n_observations = len(state)
 policy_net = DQN(n_observations, n_actions).to(device)
 target_net = DQN(n_observations, n_actions).to(device)
 if preload:
-    policy_net.load_state_dict(torch.load("asteroid_policy.pt", weights_only=True))
-    target_net.load_state_dict(torch.load("asteroid_target.pt", weights_only=True))
+    policy_net.load_state_dict(torch.load(policy_path, weights_only=True))
+    target_net.load_state_dict(torch.load(target_path, weights_only=True))
 else:
     target_net.load_state_dict(policy_net.state_dict())
 
 optimizer = optim.SGD(policy_net.parameters(), lr=LR)
 memory = ReplayMemory(100000)
 
-steps_done = 0
+if preload:
+    steps_done = 5 * EPS_DECAY
+else:
+    steps_done = 0
 
 terminate = False
 
 
 def termTraining():
     global terminate
-
-    torch.save(policy_net.state_dict(), "asteroid_policy.pt")
-    torch.save(target_net.state_dict(), "asteroid_target.pt")
 
     terminate = True
 
@@ -119,44 +124,38 @@ def select_action(state):
     eps_threshold = EPS_END + (EPS_START - EPS_END) * \
                     math.exp(-1. * steps_done / EPS_DECAY)
     steps_done += 1
-    if eps_threshold < 0.05 and not notified:
+    if eps_threshold < 0.1 and not notified:
         print(f"Policy Mode at {time.time() - global_start}")
         print(f"Episode: {len(episode_durations)}")
         notified = True
 
-    if sample > eps_threshold:
-        with torch.no_grad():
+    with torch.no_grad():
+        decision = policy_net(state).max(1)
 
-            return policy_net(state).max(1).indices.view(1, 1)
+    max_q = decision[0][0].cpu().numpy()
+
+    q_values.append(max_q)
+
+    if sample > eps_threshold:
+        return decision.indices.view(1, 1)
     else:
         #return torch.tensor([[env.action_space.sample()]], device=device, dtype=torch.long)
         return torch.tensor([[bot.action_space[random.randint(0, n_actions - 1)]]], device=device, dtype=torch.long)
 
 
-episode_durations = []
-episode_rewards = []
-
-fig, (ax1, ax2) = plt.subplots(2, 1)
+fig, (ax1, ax2) = plt.subplots(2, 1, constrained_layout=True)
 fig.set_size_inches(8, 6.4, True)
-plt.tight_layout()
-
 
 def plot_durations(show_result=False):
     global ax1, ax2
 
     durations_t = torch.tensor(episode_durations, dtype=torch.float)
     score_t = torch.tensor(episode_rewards, dtype=torch.float)
-    # if show_result:
-    #     plt.title('Result')
-    # else:
-    #     plt.clf()
-    #     plt.title('Training...')
 
     ax1.set_xlabel('Episode')
     ax1.set_ylabel('Reward')
     ax2.set_xlabel('Episode')
-    ax2.set_ylabel('Duration')
-    #plt.plot(durations_t.numpy())
+    ax2.set_ylabel('Duration (ticks)')
     ax1.plot(score_t.numpy())
     ax2.plot(durations_t.numpy())
 
@@ -212,19 +211,16 @@ if torch.cuda.is_available() or torch.backends.mps.is_available():
 else:
     num_episodes = 700
 
-highest_duration = 0
-
 start = time.time()
 
 for i_episode in range(num_episodes):
-
     state, _ = reset()
     state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
 
     step_start = time.time()
 
-    score = 0
     total_reward = 0
+    q_values = []
     for t in count():
         global observation, d_reward, terminated, truncated
 
@@ -234,8 +230,8 @@ for i_episode in range(num_episodes):
         for i in range(frame_skip):
             observation, d_reward, terminated, truncated, _ = step(action.item())
             reward += d_reward
+
         total_reward += reward
-        score += reward
 
         reward = torch.tensor([reward], device=device)
         done = terminated or truncated
@@ -257,23 +253,36 @@ for i_episode in range(num_episodes):
             target_net_state_dict[key] = policy_net_state_dict[key] * TAU + target_net_state_dict[key] * (1 - TAU)
         target_net.load_state_dict(target_net_state_dict)
 
+        if steps_done % 316000 == 0:
+            torch.save(policy_net.state_dict(), policy_path)
+            torch.save(target_net.state_dict(), target_path)
+            print(f"Saved Data after {time.time()-start} seconds")
+
         if done or terminate:
             end = time.time() - step_start
-            #print(f"Average seconds per tick: {(t + 1)/end}")
-            episode_durations.append(t + 1)
+            episode_durations.append((t + 1))
             episode_rewards.append(total_reward)
+            avg_q_values.append(numpy.mean(q_values))
             plot_durations()
-            #print(f"lasted {t + 1} ticks with a score of {score}")
             break
     if terminate:
         break
 
+torch.save(policy_net.state_dict(), policy_path)
+torch.save(target_net.state_dict(), target_path)
+
 print('Complete')
 print(f"Training took {time.time() - start} seconds")
 
+
+
 plot_durations(show_result=True)
 
-plt.savefig("dqn_fire.png")
+qfig, qaxis = plt.subplots()
+qaxis.plot(avg_q_values)
+
+fig.savefig("dqn_fire.png")
+qfig.savefig("q_vals.png")
 
 plt.ioff()
 plt.show()

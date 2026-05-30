@@ -1,4 +1,6 @@
 import random
+import time
+
 import torch
 import torch.nn as nn
 from torch.nn import Sequential
@@ -8,6 +10,8 @@ import keyboard
 
 infer = True
 
+baseline = False
+#31 seconds
 env_render()
 
 n_actions = len(bot.action_space)
@@ -51,8 +55,10 @@ class DQN(nn.Module):
 policy_net = DQN(n_observations, n_actions).to(device)
 target_net = DQN(n_observations, n_actions).to(device)
 
-policy_net.load_state_dict(torch.load("asteroid_policy.pt", weights_only=True))
-target_net.load_state_dict(torch.load("asteroid_target.pt", weights_only=True))
+if not baseline:
+    print("Loading...")
+    policy_net.load_state_dict(torch.load("asteroid_policy.pt", weights_only=True))
+    target_net.load_state_dict(torch.load("asteroid_target.pt", weights_only=True))
 
 
 def select_action(state):
@@ -61,8 +67,8 @@ def select_action(state):
 
 state, _ = reset()
 state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
+start = time.time()
 while infer:
-    #global observation, d_reward, terminated, truncated
 
     action = select_action(state)
 
@@ -81,4 +87,6 @@ while infer:
     if done:
         state, _ = reset()
         state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
+        print(f"Lasted for {time.time() - start} seconds")
+        start = time.time()
 

@@ -81,7 +81,7 @@ class Laser(Circle):
                 self.center[0] > xbounds[1] or
                 self.center[1] < ybounds[0] or
                 self.center[1] > ybounds[1]):
-            lasers.pop(self.id)
+            lasers.pop(self.id, None)
 
         if render:
             self.render(screen)
@@ -119,25 +119,35 @@ class Asteroid(Circle):
                 self.center[0] > (xbounds[1] + 300) or
                 self.center[1] < (ybounds[0] - 300) or
                 self.center[1] > (ybounds[1] + 300)):
-            asteroids.pop(self.id)
+            asteroids.pop(self.id, None)
 
         if render:
             self.render(screen)
 
-        disp = bot.laser_pos - self.center
+
+        laser_list = list(lasers.values())
+        laser_pos = numpy.empty((len(lasers), 2))
+        for i in range(len(laser_list)):
+            laser_pos[i] = laser_list[i].center
+
+        disp = laser_pos - self.center
         dist = numpy.sqrt(numpy.sum(numpy.square(disp), axis=1))
 
         collisions = dist < self.radius + bot.laser_rad
 
         laser_keys = list(lasers.keys())
 
+        if len(collisions) != len(laser_keys):
+            print(f"Global: {len(lasers)}")
+            print(f"Collisions: {len(collisions)}")
+            print(f"Keys: {len(laser_keys)}")
+
         for i in range(len(collisions)):
             if collisions[i] == 1:
                 bot.reward += 1 * reward_scale
-                print(f"Asteroid Destroyed! Current Reward: {bot.reward}")
-                lasers.pop(laser_keys[i])
-                asteroids.pop(self.id)
-                break
+                #print(f"Asteroid Destroyed! Current Reward: {bot.reward}")
+                lasers.pop(laser_keys[i], None)
+                asteroids.pop(self.id, None)
 
 
 class Player(Circle):
@@ -152,7 +162,7 @@ class Player(Circle):
         self.action_space = (0, 1, 2, 3, 4)
         self.direction_point = self.center + self.radius * numpy.array([math.cos(self.angle), math.sin(self.angle)])
         #Self data + asteroid data + laser data
-        self.num_inputs = 8 + 30 + 10
+        self.num_inputs = 5 + 35 + 10
 
         self.asteroids_pos = numpy.empty((0, 2))
         self.collisions = []
@@ -163,28 +173,27 @@ class Player(Circle):
         self.old_score = 0
         self.score = 0
 
-        self.laser_pos = numpy.empty((0, 2))
+        self.laser_list = list(lasers.values())
+        self.laser_pos = numpy.empty((len(lasers), 2))
         self.laser_id = 0
         self.laser_rad = 2
+        self.laser_speed = 1000
 
     def fire(self):
         global lasers, cooled_down
         if cooled_down:
             cooled_down = False
             lasers.update({self.laser_id: Laser(self.center[0], self.center[1],
-                                                self.angle, 5000,
+                                                self.angle, self.laser_speed,
                                                 self.laser_rad, self.laser_id, "yellow")})
             self.laser_id += 1
+
             threading.Thread(target=cooldown).start()
 
     def render(self, surface):
         self.direction_point = self.center + self.radius * numpy.array([math.cos(self.angle), math.sin(self.angle)])
         pygame.draw.circle(surface, "blue", self.center.tolist(), self.radius)
         pygame.draw.line(surface, "yellow", self.center.tolist(), self.direction_point)
-        for i in range(len(self.asteroids_pos)):
-            pygame.draw.line(surface, "white", self.center.tolist(), self.asteroids_pos[i])
-        for i in range(len(self.laser_pos)):
-            pygame.draw.line(surface, "red", self.center.tolist(), self.laser_pos[i])
 
     def reset(self):
         self.center = numpy.array([bounds[0] / 2, bounds[1] / 2])
@@ -196,23 +205,19 @@ class Player(Circle):
     def computeInputs(self):
         global gameover
 
-        inputs = numpy.zeros((self.num_inputs,)) - 1
+        inputs = numpy.zeros((self.num_inputs,)) - 1000
 
-        inputs[self.num_inputs - 8] = self.angle / (2 * math.pi)
-        inputs[self.num_inputs - 7] = self.center[0] / bounds[0]
-        inputs[self.num_inputs - 6] = self.center[1] / bounds[1]
-        inputs[self.num_inputs - 5] = self.radius / self.radius
-        inputs[self.num_inputs - 4] = self.velocity[0] / self.speed
-        inputs[self.num_inputs - 3] = self.velocity[1] / self.speed
-        inputs[self.num_inputs - 2] = (self.center[0] - bounds[0]) / bounds[0]
-        inputs[self.num_inputs - 1] = (self.center[1] - bounds[1]) / bounds[1]
+        inputs[self.num_inputs - 5] = self.center[0]
+        inputs[self.num_inputs - 4] = self.center[1]
+        inputs[self.num_inputs - 3] = self.radius
+        inputs[self.num_inputs - 2] = (bounds[0] - self.center[0])
+        inputs[self.num_inputs - 1] = (bounds[1] - self.center[1])
 
         # Provide the distance, positions, radius, x-velocity, y-velocity
         # Identify top 5 nearest asteroids and if there are less than 5 asteroids, we set the input to -1
         # 6 inputs per asteroid (5 asteroids)
         # 5 inputs for self: center (x, y), self velocity (up, down), self radius
         asteroid_list = list(asteroids.values())
-        laser_list = list(lasers.values())
 
         self.asteroids_pos = numpy.empty((0, 2))
         asteroid_radii = numpy.empty((0,))
@@ -232,53 +237,57 @@ class Player(Circle):
 
         # Provide Velocity, Position, radius
         # 5 inputs per bullet for 5 closest bullets
+        self.laser_list = list(lasers.values())
+        self.laser_pos = numpy.empty((len(lasers), 2))
+        for i in range(len(self.laser_list)):
+            self.laser_pos[i] = self.laser_list[i].center
 
-        self.laser_pos = numpy.empty((0, 2))
-        for laser in laser_list:
-            self.laser_pos = numpy.concatenate((self.laser_pos, [laser.center]))
         laser_difference = self.laser_pos - bot.center
         laser_distance = numpy.sqrt(numpy.sum(numpy.square(laser_difference), axis=1))
         laser_sort_indices = numpy.argsort(laser_distance)
 
         num_roid_checks = min(len(asteroid_list), 5)
-        num_laser_checks = min(len(laser_list), 2)
+        num_laser_checks = min(len(self.laser_list), 2)
 
         for i in range(num_roid_checks):
             idx = int(self.sort_indices[i])
-            inputs[i] = distance[idx] / bounds[0]
-            inputs[i + 5] = asteroid_list[idx].center[0] / bounds[0]
-            inputs[i + 10] = asteroid_list[idx].center[1] / bounds[1]
-            inputs[i + 15] = asteroid_list[idx].radius / self.radius
-            inputs[i + 20] = asteroid_list[idx].velocity[0] / self.speed
-            inputs[i + 25] = asteroid_list[idx].velocity[1] / self.speed
+            inputs[i] = distance[idx] - asteroid_radii[idx] - self.radius
+            inputs[i + 5] = difference[idx][0]
+            inputs[i + 10] = difference[idx][1]
+            inputs[i + 15] = asteroid_list[idx].radius
+            inputs[i + 20] = asteroid_list[idx].velocity[0] - self.velocity[0]
+            inputs[i + 25] = asteroid_list[idx].velocity[1] - self.velocity[1]
+            inputs[i + 30] = asteroid_list[idx].dir - self.angle
         for i in range(num_laser_checks):
             idx = int(laser_sort_indices[i])
-            inputs[i + 30] = laser_list[idx].center[0] / bounds[0]
-            inputs[i + 32] = laser_list[idx].center[1] / bounds[1]
-            inputs[i + 34] = laser_list[idx].radius / self.radius
-            inputs[i + 36] = laser_list[idx].velocity[0] / self.speed
-            inputs[i + 38] = laser_list[idx].velocity[1] / self.speed
+            inputs[i + 35] = laser_difference[idx][0]
+            inputs[i + 37] = laser_difference[idx][1]
+            inputs[i + 39] = self.laser_list[idx].velocity[0] - self.velocity[0]
+            inputs[i + 41] = self.laser_list[idx].velocity[1] - self.velocity[1]
+            inputs[i + 43] = self.laser_list[idx].angle - self.angle
 
         #Make sure to compute inputs before updating other things
         if (self.center[0] < 0 or
                 self.center[0] > bounds[0] or
                 self.center[1] < 0 or
                 self.center[1] > bounds[1]):
-            self.lives -= 2
+            self.lives -= 1
             self.reward -= 4 * reward_scale
             self.center[0] = bounds[0] / 2
             self.center[1] = bounds[1] / 2
-            print(f"Border Hit, current reward: {self.reward}")
-        elif sum(self.collisions) > 0:
-            self.lives -= sum(self.collisions)
+            #print(f"Border Hit, current reward: {self.reward}")
+        if sum(self.collisions) > 0:
             for i in range(len(self.roid_coll_keys)):
                 if self.collisions[i] == 1:
                     asteroids.pop(self.roid_coll_keys[i], None)
-                    self.reward -= 2 * reward_scale
-            print(f"Hit Asteroids, current reward: {self.reward}")
+                    self.reward -= 6 * reward_scale
+                    self.lives -= 1
+            #print(f"Hit Asteroids, current reward: {self.reward}")
 
         if self.lives < 1:
+            #print("Player Killed")
             gameover = True
+
 
         return inputs
 
@@ -321,6 +330,7 @@ class Player(Circle):
 
         self.angle %= 2 * math.pi
 
+
         if render:
             self.render(screen)
 
@@ -328,9 +338,9 @@ class Player(Circle):
 #speed is measured in pixels per second
 
 
-bot = Player(20.0, 900, 20, bounds[0] / 2, bounds[1] / 2, "blue")
+bot = Player(20.0, 800, 20, bounds[0] / 2, bounds[1] / 2, "blue")
 
-threading.Thread(target=spawnAsteroids, args=(700, 800, 10, 30, 20)).start()
+threading.Thread(target=spawnAsteroids, args=(600, 700, 10, 30, 20)).start()
 
 
 def step(action):
@@ -363,8 +373,6 @@ def reset():
 
     gameover = False
 
-    bot.reset()
-
     keys = list(asteroids.keys())
     for i in range(len(keys)):
         del asteroids[keys[i]]
@@ -372,7 +380,10 @@ def reset():
     for i in range(len(laser_keys)):
         del lasers[laser_keys[i]]
 
-    inputs = numpy.zeros((bot.num_inputs,)) - 1
+    bot.reset()
+
+    inputs = numpy.zeros((bot.num_inputs,)) - 1000
+
 
     return inputs, 0
 
@@ -383,7 +394,8 @@ if debug:
     #threading.Thread(target=spawnAsteroids).start()
     while running:
         step(1)
-        print(bot.score)
+        if bot.reward > 0:
+            print(bot.reward)
 
     if render:
         pygame.quit()
