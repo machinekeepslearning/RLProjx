@@ -144,7 +144,7 @@ class Asteroid(Circle):
 
         for i in range(len(collisions)):
             if collisions[i] == 1:
-                bot.reward += 1 * reward_scale
+                bot.reward += 0.6 * reward_scale
                 #print(f"Asteroid Destroyed! Current Reward: {bot.reward}")
                 lasers.pop(laser_keys[i], None)
                 asteroids.pop(self.id, None)
@@ -207,11 +207,11 @@ class Player(Circle):
 
         inputs = numpy.zeros((self.num_inputs,)) - 1000
 
-        inputs[self.num_inputs - 5] = self.center[0]
-        inputs[self.num_inputs - 4] = self.center[1]
-        inputs[self.num_inputs - 3] = self.radius
-        inputs[self.num_inputs - 2] = (bounds[0] - self.center[0])
-        inputs[self.num_inputs - 1] = (bounds[1] - self.center[1])
+        inputs[self.num_inputs - 5] = self.center[0]/bounds[0]
+        inputs[self.num_inputs - 4] = self.center[1]/bounds[1]
+        inputs[self.num_inputs - 3] = self.radius/bounds[0]
+        inputs[self.num_inputs - 2] = (bounds[0] - self.center[0])/bounds[0]
+        inputs[self.num_inputs - 1] = (bounds[1] - self.center[1])/bounds[1]
 
         # Provide the distance, positions, radius, x-velocity, y-velocity
         # Identify top 5 nearest asteroids and if there are less than 5 asteroids, we set the input to -1
@@ -251,20 +251,20 @@ class Player(Circle):
 
         for i in range(num_roid_checks):
             idx = int(self.sort_indices[i])
-            inputs[i] = distance[idx] - asteroid_radii[idx] - self.radius
-            inputs[i + 5] = difference[idx][0]
-            inputs[i + 10] = difference[idx][1]
-            inputs[i + 15] = asteroid_list[idx].radius
-            inputs[i + 20] = asteroid_list[idx].velocity[0] - self.velocity[0]
-            inputs[i + 25] = asteroid_list[idx].velocity[1] - self.velocity[1]
-            inputs[i + 30] = asteroid_list[idx].dir - self.angle
+            inputs[i] = (distance[idx] - asteroid_radii[idx] - self.radius)/(math.sqrt(2) * bounds[0])
+            inputs[i + 5] = difference[idx][0]/bounds[0]
+            inputs[i + 10] = difference[idx][1]/bounds[1]
+            inputs[i + 15] = asteroid_list[idx].radius/bounds[0]
+            inputs[i + 20] = (asteroid_list[idx].velocity[0] - self.velocity[0])/self.speed
+            inputs[i + 25] = (asteroid_list[idx].velocity[1] - self.velocity[1])/self.speed
+            inputs[i + 30] = (asteroid_list[idx].dir - self.angle)/(2*math.pi)
         for i in range(num_laser_checks):
             idx = int(laser_sort_indices[i])
-            inputs[i + 35] = laser_difference[idx][0]
-            inputs[i + 37] = laser_difference[idx][1]
-            inputs[i + 39] = self.laser_list[idx].velocity[0] - self.velocity[0]
-            inputs[i + 41] = self.laser_list[idx].velocity[1] - self.velocity[1]
-            inputs[i + 43] = self.laser_list[idx].angle - self.angle
+            inputs[i + 35] = (laser_difference[idx][0])/bounds[0]
+            inputs[i + 37] = (laser_difference[idx][1])/bounds[1]
+            inputs[i + 39] = (self.laser_list[idx].velocity[0] - self.velocity[0])/self.speed
+            inputs[i + 41] = (self.laser_list[idx].velocity[1] - self.velocity[1])/self.speed
+            inputs[i + 43] = (self.laser_list[idx].angle - self.angle)/(2*math.pi)
 
         #Make sure to compute inputs before updating other things
         if (self.center[0] < 0 or
@@ -272,7 +272,7 @@ class Player(Circle):
                 self.center[1] < 0 or
                 self.center[1] > bounds[1]):
             self.lives -= 1
-            self.reward -= 4 * reward_scale
+            self.reward -= 0.4 * reward_scale
             self.center[0] = bounds[0] / 2
             self.center[1] = bounds[1] / 2
             #print(f"Border Hit, current reward: {self.reward}")
@@ -280,7 +280,7 @@ class Player(Circle):
             for i in range(len(self.roid_coll_keys)):
                 if self.collisions[i] == 1:
                     asteroids.pop(self.roid_coll_keys[i], None)
-                    self.reward -= 6 * reward_scale
+                    self.reward -= 0.4 * reward_scale
                     self.lives -= 1
             #print(f"Hit Asteroids, current reward: {self.reward}")
 

@@ -50,11 +50,10 @@ class DQN(nn.Module):
         super(DQN, self).__init__()
         self.sequence = Sequential(
             nn.Linear(n_observations, 128),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(negative_slope=0.1),
             nn.Linear(128, 128),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(negative_slope=0.1),
             nn.Linear(128, n_actions),
-            nn.LeakyReLU(),
         )
 
     def forward(self, x):
@@ -67,13 +66,13 @@ avg_q_values = []
 BATCH_SIZE = 128
 GAMMA = 0.99
 #GAMMA = 0.1
-EPS_START = 0.9
-EPS_END = 0.01
-EPS_DECAY = 100000
+EPS_START = 0.95
+EPS_END = 0.1
+EPS_DECAY = 500000
 TAU = 0.005
 #TAU = 0.1
 #LR = 3e-4
-LR = 5e-4
+LR = 1e-4
 
 frame_skip = 1
 
@@ -95,7 +94,7 @@ else:
     target_net.load_state_dict(policy_net.state_dict())
 
 optimizer = optim.SGD(policy_net.parameters(), lr=LR)
-memory = ReplayMemory(100000)
+memory = ReplayMemory(1000000)
 
 if preload:
     steps_done = 5 * EPS_DECAY
@@ -124,7 +123,7 @@ def select_action(state):
     eps_threshold = EPS_END + (EPS_START - EPS_END) * \
                     math.exp(-1. * steps_done / EPS_DECAY)
     steps_done += 1
-    if eps_threshold < 0.1 and not notified:
+    if eps_threshold < 0.5 and not notified:
         print(f"Policy Mode at {time.time() - global_start}")
         print(f"Episode: {len(episode_durations)}")
         notified = True
@@ -202,7 +201,7 @@ def optimize_model():
     optimizer.zero_grad()
     loss.backward()
 
-    #torch.nn.utils.clip_grad_value_(policy_net.parameters(), 100)
+    torch.nn.utils.clip_grad_value_(policy_net.parameters(), 100)
     optimizer.step()
 
 
@@ -280,6 +279,8 @@ plot_durations(show_result=True)
 
 qfig, qaxis = plt.subplots()
 qaxis.plot(avg_q_values)
+
+print(f"Average Max Q Vals: {avg_q_values}")
 
 fig.savefig("dqn_fire.png")
 qfig.savefig("q_vals.png")
