@@ -57,8 +57,8 @@ target_net = DQN(n_observations, n_actions).to(device)
 
 if not baseline:
     print("Loading...")
-    policy_net.load_state_dict(torch.load("asteroid_policy.pt", weights_only=True))
-    target_net.load_state_dict(torch.load("asteroid_target.pt", weights_only=True))
+    policy_net.load_state_dict(torch.load("Run_6/asteroid_policy.pt", weights_only=True))
+    target_net.load_state_dict(torch.load("Run_6/asteroid_target.pt", weights_only=True))
 
 
 def select_action(state):
