@@ -8,7 +8,7 @@ import keyboard
 import time
 from helpers.geometry_helpers import *
 
-debug = True
+debug = False
 render = False
 running = True
 gameover = False
@@ -22,6 +22,7 @@ xbounds = [0, 800]
 ybounds = [0, 800]
 bounds = (xbounds[1], ybounds[1])
 
+
 def env_render():
     global render, screen
     render = True
@@ -34,8 +35,8 @@ def env_render():
 if debug:
     env_render()
 # Laser, Asteroid
-off_cooldown = {"Laser": True, "Asteroid": True}
-
+laser_off_cooldown = True
+asteroid_off_cooldown = True
 asteroids = {}
 
 lasers = {}
@@ -45,6 +46,7 @@ action_space = (0, 1, 2, 3, 4)
 
 reward = 0
 reward_scale = 1
+
 
 def toggle_sensors():
     global sensor_enabled
@@ -56,17 +58,21 @@ keyboard.add_hotkey("p", toggle_sensors)
 
 
 def cooldown(cooldown_time, key):
-    global off_cooldown
+    global laser_off_cooldown, asteroid_off_cooldown
 
     time.sleep(cooldown_time)
-    off_cooldown[key] = True
+
+    if key == "Asteroid":
+        asteroid_off_cooldown = True
+    elif key == "Laser":
+        laser_off_cooldown = True
 
 
 def spawnAsteroid(min_speed, max_speed, min_rad, max_rad, max_roids):
-    global globalId, off_cooldown
+    global globalId, asteroid_off_cooldown
 
-    if len(asteroids) < max_roids and off_cooldown["Asteroid"]:
-        off_cooldown["Asteroid"] = False
+    if len(asteroids) < max_roids and asteroid_off_cooldown:
+        asteroid_off_cooldown = False
         asteroids.update({globalId: Asteroid(
             speed=random.randint(min_speed, max_speed),
             radius=random.randint(min_rad, max_rad),
@@ -176,9 +182,9 @@ class Player(Circle):
             self.sensor_color[i] = "green"
 
     def fire(self):
-        global lasers, off_cooldown
-        if off_cooldown["Laser"]:
-            off_cooldown["Laser"] = False
+        global lasers, laser_off_cooldown
+        if laser_off_cooldown:
+            laser_off_cooldown = False
             lasers.update({self.laser_id: Laser(self.center[0], self.center[1],
                                                 self.angle, self.laser_speed,
                                                 self.laser_rad, self.laser_id, "yellow")})
@@ -239,7 +245,7 @@ class Player(Circle):
                 self.center[1] > ybounds[1]):
             reward -= 0.4
             bot.lives -= 1
-            self.center[0] = bounds[0]/2
+            self.center[0] = bounds[0] / 2
             self.center[1] = bounds[1] / 2
 
         if render:
@@ -255,6 +261,8 @@ bot = Player(20.0, 800, 20, bounds[0] / 2, bounds[1] / 2, "blue")
 def globalUpdate():
     global reward
 
+    observation = numpy.zeros((bot.num_inputs,)) + 1
+
     asteroid_list = list(asteroids.values())
     asteroid_pos = get_positions(asteroid_list)
     asteroid_radii = get_radii(asteroid_list)
@@ -266,14 +274,18 @@ def globalUpdate():
     #Projection/Normals: axis 0: Asteroids, axis 1: Sensors
     projections = rel_asteroid_pos.dot(bot.sensor_unit_vectors.transpose())
     normals = numpy.sqrt(numpy.square(dist.repeat(bot.num_sensors, axis=1)) - numpy.square(projections))
-    along_sensor = projections - numpy.sqrt(
-        numpy.square(asteroid_radii.repeat(bot.num_sensors, axis=1)) - numpy.square(normals))
-    min_along = numpy.min(along_sensor, where=(along_sensor > 0), axis=0, initial=1000)
-    min_along = numpy.reshape(min_along, (50, 1))
-    casts = numpy.multiply(min_along, bot.sensor_unit_vectors)
-    border_casts = numpy.array([-bot.center[0], -bot.center[1], bounds[0] - bot.center[0], bounds[1] - bot.center[1]])
+    inside = numpy.square(asteroid_radii.repeat(bot.num_sensors, axis=1)) - numpy.square(normals)
+    casts = []
+    if numpy.all(inside > 0):
+        along_sensor = projections - numpy.sqrt(
+            numpy.square(asteroid_radii.repeat(bot.num_sensors, axis=1)) - numpy.square(normals))
+        min_along = numpy.min(along_sensor, where=(along_sensor > 0), axis=0, initial=1000)
+        min_along = numpy.reshape(min_along, (50, 1))
+        casts = numpy.multiply(min_along, bot.sensor_unit_vectors)
+        border_casts = numpy.array(
+            [-bot.center[0], -bot.center[1], bounds[0] - bot.center[0], bounds[1] - bot.center[1]])
 
-    observation = numpy.concatenate((casts.flatten(), border_casts))/1000
+        observation = numpy.concatenate((casts.flatten(), border_casts)) / 1000
 
     #Laser-Asteroid Collisions
     laser_keys = list(lasers.keys())
@@ -307,7 +319,6 @@ def globalUpdate():
                 reward -= 0.4
                 bot.lives -= 1
 
-
     if render and sensor_enabled:
         for i in range(len(casts)):
             pygame.draw.line(screen, "green", bot.center, casts[i] + bot.center)
@@ -321,10 +332,11 @@ def step(action):
     reward = 0
 
     if render:
+        pygame.event.pump()
         pygame.display.flip()
         screen.fill("black")
 
-    spawnAsteroid(100, 100, 10, 30, 20)
+    spawnAsteroid(700, 800, 10, 30, 20)
 
     bot.update(action)
     for roid in list(asteroids.values()):
@@ -336,6 +348,9 @@ def step(action):
 
     terminated = True if bot.lives < 1 else False
 
+    if terminated:
+        print("I died")
+
     return observation, reward, terminated, False, False
 
 
@@ -345,24 +360,22 @@ def reset():
     reward = 0
     gameover = False
 
-    keys = list(asteroids.keys())
-    for i in range(len(keys)):
-        del asteroids[keys[i]]
+    asteroid_keys = list(asteroids.keys())
+    for i in range(len(asteroid_keys)):
+        asteroids.pop(asteroid_keys[i], None)
+
     laser_keys = list(lasers.keys())
     for i in range(len(laser_keys)):
-        del lasers[laser_keys[i]]
+        lasers.pop(laser_keys[i], None)
 
     bot.reset()
 
-    inputs = numpy.zeros((bot.num_sensors,)) + 1000
+    inputs = numpy.zeros((bot.num_inputs,)) + 1
 
     return inputs, 0
 
 
-# threading.Thread(target=spawnAsteroids).start()
-
 if debug:
-    #threading.Thread(target=spawnAsteroids).start()
     while running:
         if render:
             for event in pygame.event.get():

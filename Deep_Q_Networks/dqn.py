@@ -5,7 +5,9 @@ from itertools import count
 import numpy
 from torch.nn import Sequential
 
-from Environments.pureastroidgame import *
+from Environments.anotherasteroidgame import *
+
+#env_render()
 
 import torch
 import torch.nn as nn
@@ -72,7 +74,7 @@ EPS_DECAY = 500000
 TAU = 0.005
 #TAU = 0.1
 #LR = 3e-4
-LR = 1e-4
+LR = 1e-5
 
 frame_skip = 1
 
@@ -93,7 +95,7 @@ if preload:
 else:
     target_net.load_state_dict(policy_net.state_dict())
 
-optimizer = optim.SGD(policy_net.parameters(), lr=LR)
+optimizer = optim.Adam(policy_net.parameters(), lr=LR)
 memory = ReplayMemory(1000000)
 
 if preload:
@@ -229,7 +231,6 @@ for i_episode in range(num_episodes):
         for i in range(frame_skip):
             observation, d_reward, terminated, truncated, _ = step(action.item())
             reward += d_reward
-
         total_reward += reward
 
         reward = torch.tensor([reward], device=device)
