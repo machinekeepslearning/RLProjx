@@ -150,7 +150,7 @@ class Player(Circle):
         self.action_space = (0, 1, 2, 3, 4)
         self.direction_point = self.center + self.radius * numpy.array([math.cos(self.angle), math.sin(self.angle)])
         #Self data + asteroid data + laser data
-        self.num_inputs = 5 + 35 + 10
+        self.num_inputs = 104
 
         self.asteroids_pos = numpy.empty((0, 2))
         self.collisions = []
@@ -255,7 +255,6 @@ bot = Player(20.0, 800, 20, bounds[0] / 2, bounds[1] / 2, "blue")
 def globalUpdate():
     global reward
 
-    #initialize object arrays
     asteroid_list = list(asteroids.values())
     asteroid_pos = get_positions(asteroid_list)
     asteroid_radii = get_radii(asteroid_list)
@@ -272,6 +271,9 @@ def globalUpdate():
     min_along = numpy.min(along_sensor, where=(along_sensor > 0), axis=0, initial=1000)
     min_along = numpy.reshape(min_along, (50, 1))
     casts = numpy.multiply(min_along, bot.sensor_unit_vectors)
+    border_casts = numpy.array([-bot.center[0], -bot.center[1], bounds[0] - bot.center[0], bounds[1] - bot.center[1]])
+
+    observation = numpy.concatenate((casts.flatten(), border_casts))/1000
 
     #Laser-Asteroid Collisions
     laser_keys = list(lasers.keys())
@@ -310,7 +312,7 @@ def globalUpdate():
         for i in range(len(casts)):
             pygame.draw.line(screen, "green", bot.center, casts[i] + bot.center)
 
-    return casts.flatten()/1000
+    return observation
 
 
 def step(action):
