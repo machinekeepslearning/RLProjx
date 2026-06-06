@@ -78,7 +78,7 @@ LR = 5e-4
 
 frame_skip = 1
 
-preload = True
+preload = False
 
 run_num = 4
 

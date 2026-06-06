@@ -156,7 +156,7 @@ class Player(Circle):
         self.action_space = (0, 1, 2, 3, 4)
         self.direction_point = self.center + self.radius * numpy.array([math.cos(self.angle), math.sin(self.angle)])
         #Self data + asteroid data + laser data
-        self.num_inputs = 104
+        self.num_inputs = 54
 
         self.asteroids_pos = numpy.empty((0, 2))
         self.collisions = []
@@ -275,17 +275,16 @@ def globalUpdate():
     projections = rel_asteroid_pos.dot(bot.sensor_unit_vectors.transpose())
     normals = numpy.sqrt(numpy.square(dist.repeat(bot.num_sensors, axis=1)) - numpy.square(projections))
     inside = numpy.square(asteroid_radii.repeat(bot.num_sensors, axis=1)) - numpy.square(normals)
-    casts = []
+    min_along = []
     if numpy.all(inside > 0):
         along_sensor = projections - numpy.sqrt(
             numpy.square(asteroid_radii.repeat(bot.num_sensors, axis=1)) - numpy.square(normals))
         min_along = numpy.min(along_sensor, where=(along_sensor > 0), axis=0, initial=1000)
         min_along = numpy.reshape(min_along, (50, 1))
-        casts = numpy.multiply(min_along, bot.sensor_unit_vectors)
         border_casts = numpy.array(
-            [-bot.center[0], -bot.center[1], bounds[0] - bot.center[0], bounds[1] - bot.center[1]])
+            [bot.center[0], bot.center[1], bounds[0] - bot.center[0], bounds[1] - bot.center[1]])
 
-        observation = numpy.concatenate((casts.flatten(), border_casts)) / 1000
+        observation = numpy.concatenate((min_along.flatten(), border_casts)) / 1000
 
     #Laser-Asteroid Collisions
     laser_keys = list(lasers.keys())
@@ -320,6 +319,7 @@ def globalUpdate():
                 bot.lives -= 1
 
     if render and sensor_enabled:
+        casts = numpy.multiply(min_along, bot.sensor_unit_vectors)
         for i in range(len(casts)):
             pygame.draw.line(screen, "green", bot.center, casts[i] + bot.center)
 
