@@ -7,7 +7,7 @@ from torch.nn import Sequential
 
 from Environments.anotherasteroidgame import *
 
-#env_render()
+env_render()
 
 import torch
 import torch.nn as nn
@@ -52,9 +52,9 @@ class DQN(nn.Module):
         super(DQN, self).__init__()
         self.sequence = Sequential(
             nn.Linear(n_observations, 128),
-            nn.LeakyReLU(negative_slope=0.1),
+            nn.LeakyReLU(negative_slope=0.01),
             nn.Linear(128, 128),
-            nn.LeakyReLU(negative_slope=0.1),
+            nn.LeakyReLU(negative_slope=0.01),
             nn.Linear(128, n_actions),
         )
 
@@ -74,11 +74,13 @@ EPS_DECAY = 500000
 TAU = 0.005
 #TAU = 0.1
 #LR = 3e-4
-LR = 1e-5
+LR = 5e-4
 
 frame_skip = 1
 
-preload = False
+preload = True
+
+run_num = 4
 
 # n_actions = env.action_space.n
 n_actions = len(bot.action_space)
@@ -90,13 +92,13 @@ n_observations = len(state)
 policy_net = DQN(n_observations, n_actions).to(device)
 target_net = DQN(n_observations, n_actions).to(device)
 if preload:
-    policy_net.load_state_dict(torch.load(policy_path, weights_only=True))
-    target_net.load_state_dict(torch.load(target_path, weights_only=True))
+    policy_net.load_state_dict(torch.load(f"./Run_{run_num}/{policy_path}", weights_only=True))
+    target_net.load_state_dict(torch.load(f"./Run_{run_num}/{target_path}", weights_only=True))
 else:
     target_net.load_state_dict(policy_net.state_dict())
 
 optimizer = optim.Adam(policy_net.parameters(), lr=LR)
-memory = ReplayMemory(1000000)
+memory = ReplayMemory(500000)
 
 if preload:
     steps_done = 5 * EPS_DECAY

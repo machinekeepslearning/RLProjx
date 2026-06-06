@@ -243,7 +243,7 @@ class Player(Circle):
                 self.center[0] > xbounds[1] or
                 self.center[1] < ybounds[0] or
                 self.center[1] > ybounds[1]):
-            reward -= 0.4
+            reward -= 0.6
             bot.lives -= 1
             self.center[0] = bounds[0] / 2
             self.center[1] = bounds[1] / 2
@@ -304,7 +304,7 @@ def globalUpdate():
         for i in range(len(lasers)):
             if laser_collisions[i] == 1:
                 lasers.pop(laser_keys[i], None)
-                reward += 0.6
+                reward += 0.5
         for i in range(len(asteroids)):
             if asteroid_collisions[i] == 1:
                 asteroids.pop(asteroid_keys[i], None)
@@ -316,7 +316,7 @@ def globalUpdate():
         for i in range(len(asteroids)):
             if ba_collisions[i] == 1:
                 asteroids.pop(asteroid_keys[i], None)
-                reward -= 0.4
+                reward -= 0.6
                 bot.lives -= 1
 
     if render and sensor_enabled:
@@ -347,9 +347,6 @@ def step(action):
     observation = globalUpdate()
 
     terminated = True if bot.lives < 1 else False
-
-    if terminated:
-        print("I died")
 
     return observation, reward, terminated, False, False
 

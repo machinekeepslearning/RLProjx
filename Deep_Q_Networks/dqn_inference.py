@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from torch.nn import Sequential
 
-from Environments.pureastroidgame import *
+from Environments.anotherasteroidgame import *
 import keyboard
 
 infer = True
@@ -40,11 +40,10 @@ class DQN(nn.Module):
         super(DQN, self).__init__()
         self.sequence = Sequential(
             nn.Linear(n_observations, 128),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(negative_slope=0.01),
             nn.Linear(128, 128),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(negative_slope=0.01),
             nn.Linear(128, n_actions),
-            nn.LeakyReLU(),
         )
 
     def forward(self, x):
@@ -57,17 +56,30 @@ target_net = DQN(n_observations, n_actions).to(device)
 
 if not baseline:
     print("Loading...")
-    policy_net.load_state_dict(torch.load("Run_6/asteroid_policy.pt", weights_only=True))
-    target_net.load_state_dict(torch.load("Run_6/asteroid_target.pt", weights_only=True))
+    policy_net.load_state_dict(torch.load("./Run_4/asteroid_policy.pt", weights_only=True))
+    target_net.load_state_dict(torch.load("./Run_4/asteroid_target.pt", weights_only=True))
 
 
 def select_action(state):
+    sample = random.random()
+    eps_threshold = 0.1
+
     with torch.no_grad():
-        return policy_net(state).max(1).indices.view(1, 1)
+        decision = policy_net(state).max(1)
+
+    if sample > eps_threshold:
+        return decision.indices.view(1, 1)
+    else:
+        #return torch.tensor([[env.action_space.sample()]], device=device, dtype=torch.long)
+        return torch.tensor([[bot.action_space[random.randint(0, n_actions - 1)]]], device=device, dtype=torch.long)
+
 
 state, _ = reset()
 state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
 start = time.time()
+
+policy_net.eval()
+
 while infer:
 
     action = select_action(state)
