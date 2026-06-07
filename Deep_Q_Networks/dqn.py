@@ -7,7 +7,7 @@ from torch.nn import Sequential
 
 from Environments.anotherasteroidgame import *
 
-env_render()
+#env_render()
 
 import torch
 import torch.nn as nn
@@ -78,7 +78,7 @@ LR = 5e-4
 
 frame_skip = 1
 
-preload = True
+preload = False
 
 run_num = 6
 
@@ -247,7 +247,7 @@ for i_episode in range(num_episodes):
 
         state = next_state
 
-        if t % 8 == 0:
+        if t % 32 == 0:
             optimize_model()
 
         target_net_state_dict = target_net.state_dict()
