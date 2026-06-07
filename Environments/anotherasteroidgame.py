@@ -8,7 +8,7 @@ import keyboard
 import time
 from helpers.geometry_helpers import *
 
-debug = False
+debug = True
 render = False
 running = True
 gameover = False
@@ -50,7 +50,7 @@ reward_scale = 1
 
 def toggle_sensors():
     global sensor_enabled
-
+    print("Sensors toggled")
     sensor_enabled = not sensor_enabled
 
 
@@ -156,7 +156,7 @@ class Player(Circle):
         self.action_space = (0, 1, 2, 3, 4)
         self.direction_point = self.center + self.radius * numpy.array([math.cos(self.angle), math.sin(self.angle)])
         #Self data + asteroid data + laser data
-        self.num_inputs = 54
+        self.num_inputs = 50
 
         self.asteroids_pos = numpy.empty((0, 2))
         self.collisions = []
@@ -261,8 +261,6 @@ bot = Player(20.0, 800, 20, bounds[0] / 2, bounds[1] / 2, "blue")
 def globalUpdate():
     global reward
 
-    observation = numpy.zeros((bot.num_inputs,)) + 1
-
     asteroid_list = list(asteroids.values())
     asteroid_pos = get_positions(asteroid_list)
     asteroid_radii = get_radii(asteroid_list)
@@ -274,17 +272,30 @@ def globalUpdate():
     #Projection/Normals: axis 0: Asteroids, axis 1: Sensors
     projections = rel_asteroid_pos.dot(bot.sensor_unit_vectors.transpose())
     normals = numpy.sqrt(numpy.square(dist.repeat(bot.num_sensors, axis=1)) - numpy.square(projections))
-    inside = numpy.square(asteroid_radii.repeat(bot.num_sensors, axis=1)) - numpy.square(normals)
-    min_along = []
-    if numpy.all(inside > 0):
-        along_sensor = projections - numpy.sqrt(
-            numpy.square(asteroid_radii.repeat(bot.num_sensors, axis=1)) - numpy.square(normals))
-        min_along = numpy.min(along_sensor, where=(along_sensor > 0), axis=0, initial=1000)
-        min_along = numpy.reshape(min_along, (50, 1))
-        border_casts = numpy.array(
-            [bot.center[0], bot.center[1], bounds[0] - bot.center[0], bounds[1] - bot.center[1]])
+    along_sensor = projections - numpy.sqrt(
+        numpy.square(asteroid_radii.repeat(bot.num_sensors, axis=1)) - numpy.square(normals)) - bot.radius
 
-        observation = numpy.concatenate((min_along.flatten(), border_casts)) / 1000
+    #Compute and stack border checks
+    border_normals = numpy.array([[0, 1],
+                                  [-1, 0],
+                                  [0, -1],
+                                  [1, 0]])
+    border_starts = numpy.array([[0, 0],
+                                 [0, 0],
+                                 [bounds[0], bounds[1]],
+                                 [bounds[0], bounds[1]]])
+    delta = border_starts - bot.center
+    numer = numpy.expand_dims(numpy.sum(numpy.multiply(border_normals, delta), axis=1), -1)
+    denom = numpy.matmul(border_normals, bot.sensor_unit_vectors.transpose())
+    border_dist = numer/denom
+
+    #Combine and Find closest
+    combined = numpy.vstack((along_sensor, border_dist))
+    check_invalid = numpy.logical_and(numpy.logical_not(numpy.isnan(combined)), combined > 0)
+
+    min_along = numpy.min(combined, where=check_invalid, axis=0, initial=1000)
+
+    observation = min_along.flatten()/1000
 
     #Laser-Asteroid Collisions
     laser_keys = list(lasers.keys())
@@ -319,7 +330,7 @@ def globalUpdate():
                 bot.lives -= 1
 
     if render and sensor_enabled:
-        casts = numpy.multiply(min_along, bot.sensor_unit_vectors)
+        casts = numpy.expand_dims(min_along, -1) * bot.sensor_unit_vectors
         for i in range(len(casts)):
             pygame.draw.line(screen, "green", bot.center, casts[i] + bot.center)
 
