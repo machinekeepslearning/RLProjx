@@ -1,3 +1,5 @@
+import os.path
+
 import matplotlib.pyplot as plt
 from collections import namedtuple, deque
 from itertools import count
@@ -17,6 +19,7 @@ import keyboard
 
 policy_path = "asteroid_policy.pt"
 target_path = "asteroid_target.pt"
+stop_path = "stop.txt"
 
 plt.ion()
 
@@ -105,17 +108,6 @@ if preload:
     steps_done = 5 * EPS_DECAY
 else:
     steps_done = 0
-
-terminate = False
-
-
-def termTraining():
-    global terminate
-
-    terminate = True
-
-
-keyboard.add_hotkey('q', termTraining)
 
 notified = False
 
@@ -218,6 +210,8 @@ else:
 
 start = time.time()
 
+terminate = False
+
 for i_episode in range(num_episodes):
     state, _ = reset()
     state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
@@ -262,6 +256,11 @@ for i_episode in range(num_episodes):
             torch.save(policy_net.state_dict(), policy_path)
             torch.save(target_net.state_dict(), target_path)
             print(f"Saved Data after {time.time() - start} seconds")
+
+        if os.path.exists(stop_path):
+            terminate = True
+            time.sleep(1)
+            os.remove(stop_path)
 
         if done or terminate:
             end = time.time() - step_start
