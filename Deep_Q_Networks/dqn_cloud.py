@@ -17,6 +17,10 @@ import torch.optim as optim
 import time
 import keyboard
 
+from pathlib import Path
+
+Path("Current_Run").mkdir(parents=True, exist_ok=True)
+
 policy_path = "Current_Run/asteroid_policy.pt"
 target_path = "Current_Run/asteroid_target.pt"
 stop_path = "stop.txt"
