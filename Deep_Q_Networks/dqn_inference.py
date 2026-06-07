@@ -54,13 +54,13 @@ class DQN(nn.Module):
 policy_net = DQN(n_observations, n_actions).to(device)
 target_net = DQN(n_observations, n_actions).to(device)
 
-policy_net.load_state_dict(torch.load("./Run_5/asteroid_policy.pt", weights_only=True))
-target_net.load_state_dict(torch.load("./Run_5/asteroid_target.pt", weights_only=True))
+policy_net.load_state_dict(torch.load("Run_7 (High Quality)/asteroid_policy.pt", weights_only=True))
+target_net.load_state_dict(torch.load("Run_7 (High Quality)/asteroid_target.pt", weights_only=True))
 
 
 def select_action(state):
     sample = random.random()
-    eps_threshold = 0.1
+    eps_threshold = 0.001
 
     with torch.no_grad():
         decision = policy_net(state).max(1)

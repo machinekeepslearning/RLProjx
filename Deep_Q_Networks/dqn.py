@@ -69,12 +69,12 @@ BATCH_SIZE = 128
 GAMMA = 0.99
 #GAMMA = 0.1
 EPS_START = 0.95
-EPS_END = 0.05
+EPS_END = 0.1
 EPS_DECAY = 500000
 TAU = 0.005
 #TAU = 0.1
 #LR = 3e-4
-LR = 5e-4
+LR = 5e-5
 
 frame_skip = 1
 
