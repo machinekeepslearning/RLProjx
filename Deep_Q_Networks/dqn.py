@@ -69,7 +69,7 @@ BATCH_SIZE = 128
 GAMMA = 0.99
 #GAMMA = 0.1
 EPS_START = 0.95
-EPS_END = 0.1
+EPS_END = 0.05
 EPS_DECAY = 500000
 TAU = 0.005
 #TAU = 0.1
@@ -80,7 +80,7 @@ frame_skip = 1
 
 preload = True
 
-run_num = 4
+run_num = 6
 
 # n_actions = env.action_space.n
 n_actions = len(bot.action_space)
@@ -247,7 +247,8 @@ for i_episode in range(num_episodes):
 
         state = next_state
 
-        optimize_model()
+        if t % 8 == 0:
+            optimize_model()
 
         target_net_state_dict = target_net.state_dict()
         policy_net_state_dict = policy_net.state_dict()
@@ -267,6 +268,8 @@ for i_episode in range(num_episodes):
             avg_q_values.append(numpy.mean(q_values))
             plot_durations()
             break
+
+        time.sleep(0.001)
     if terminate:
         break
 
