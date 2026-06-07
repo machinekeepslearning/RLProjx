@@ -17,8 +17,8 @@ import torch.optim as optim
 import time
 import keyboard
 
-policy_path = "asteroid_policy.pt"
-target_path = "asteroid_target.pt"
+policy_path = "Current_Run/asteroid_policy.pt"
+target_path = "Current_Run/asteroid_target.pt"
 stop_path = "stop.txt"
 
 plt.ion()
@@ -286,8 +286,8 @@ qaxis.plot(avg_q_values)
 
 print(f"Average Max Q Vals: {avg_q_values}")
 
-fig.savefig("dqn_fire.png")
-qfig.savefig("q_vals.png")
+fig.savefig("Current_Run/dqn_reward_duration.png")
+qfig.savefig("Current_Run/q_vals.png")
 
 plt.ioff()
 plt.close()
