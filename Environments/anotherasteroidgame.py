@@ -8,7 +8,7 @@ import keyboard
 import time
 from helpers.geometry_helpers import *
 
-debug = False
+debug = True
 render = False
 running = True
 gameover = False
@@ -170,17 +170,17 @@ class Player(Circle):
         self.sensor_length = 50
         self.num_sensors = 50
         self.sensor_unit_vectors = numpy.zeros((self.num_sensors, 2))
-        self.sensor_angles = numpy.zeros((self.num_sensors,))
+        self.start_sensor_angles = numpy.zeros((self.num_sensors,))
         self.sensor_color = [None] * self.num_sensors
         increment = (2 * math.pi) / self.num_sensors
         for i in range(self.num_sensors):
-            self.sensor_angles[i] = i * increment
-            ux = math.cos(self.sensor_angles[i])
-            uy = math.sin(self.sensor_angles[i])
+            self.start_sensor_angles[i] = i * increment
+            ux = math.cos(self.start_sensor_angles[i])
+            uy = math.sin(self.start_sensor_angles[i])
             self.sensor_unit_vectors[i] = (ux, uy)
 
             self.sensor_color[i] = "green"
-
+        self.sensor_color[0] = "red"
     def fire(self):
         global lasers, laser_off_cooldown
         if laser_off_cooldown:
@@ -238,6 +238,13 @@ class Player(Circle):
                 self.fire()
 
         self.angle %= 2 * math.pi
+
+        new_sensor_angles = self.angle + self.start_sensor_angles
+        for i in range(self.num_sensors):
+            ux = math.cos(new_sensor_angles[i])
+            uy = math.sin(new_sensor_angles[i])
+            self.sensor_unit_vectors[i] = (ux, uy)
+
 
         if (self.center[0] < xbounds[0] or
                 self.center[0] > xbounds[1] or
@@ -332,7 +339,7 @@ def globalUpdate():
     if render and sensor_enabled:
         casts = numpy.expand_dims(min_along, -1) * bot.sensor_unit_vectors
         for i in range(len(casts)):
-            pygame.draw.line(screen, "green", bot.center, casts[i] + bot.center)
+            pygame.draw.line(screen, bot.sensor_color[i], bot.center, casts[i] + bot.center)
 
     return observation
 
