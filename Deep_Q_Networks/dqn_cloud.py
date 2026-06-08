@@ -4,18 +4,14 @@ import matplotlib.pyplot as plt
 from collections import namedtuple, deque
 from itertools import count
 
-import numpy
 from torch.nn import Sequential
 
 from Environments.anotherasteroidgame import *
-
-#env_render()
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import time
-import keyboard
 
 from pathlib import Path
 
@@ -88,7 +84,7 @@ frame_skip = 1
 
 preload = False
 
-run_num = 6
+run_num = 99
 
 # n_actions = env.action_space.n
 n_actions = len(bot.action_space)
@@ -288,7 +284,7 @@ plot_durations(show_result=True)
 qfig, qaxis = plt.subplots()
 qaxis.plot(avg_q_values)
 
-print(f"Average Max Q Vals: {avg_q_values}")
+print(f"Average of Average Max Q Vals: {numpy.mean(avg_q_values)}")
 
 fig.savefig("Current_Run/dqn_reward_duration.png")
 qfig.savefig("Current_Run/q_vals.png")
