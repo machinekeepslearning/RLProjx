@@ -185,7 +185,8 @@ def optimize_model():
     action_batch = torch.cat(batch.action)
     reward_batch = torch.cat(batch.reward)
 
-    state_action_values = policy_net(state_batch).gather(1, action_batch)
+    with torch.amp.autocast(device_type=device.type, dtype=torch.bfloat16):
+        state_action_values = policy_net(state_batch).gather(1, action_batch)
 
     next_state_values = torch.zeros(BATCH_SIZE, device=device)
     with torch.no_grad():
@@ -206,7 +207,7 @@ def optimize_model():
 if torch.cuda.is_available() or torch.backends.mps.is_available():
     num_episodes = 600
 else:
-    num_episodes = 700
+    num_episodes = 1000
 
 start = time.time()
 

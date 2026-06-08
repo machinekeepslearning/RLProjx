@@ -2,7 +2,6 @@ import matplotlib.pyplot as plt
 from collections import namedtuple, deque
 from itertools import count
 
-import numpy
 from torch.nn import Sequential
 
 from Environments.anotherasteroidgame import *
@@ -15,8 +14,12 @@ import torch.optim as optim
 import time
 import keyboard
 
-policy_path = "asteroid_policy.pt"
-target_path = "asteroid_target.pt"
+from pathlib import Path
+
+Path("Current_Run").mkdir(parents=True, exist_ok=True)
+
+policy_path = "Current_Run/asteroid_policy.pt"
+target_path = "Current_Run/asteroid_target.pt"
 
 plt.ion()
 
@@ -186,12 +189,10 @@ def optimize_model():
                                        if s is not None])
     state_batch = torch.cat(batch.state)
 
-    #print(state_batch.shape)
-
     action_batch = torch.cat(batch.action)
     reward_batch = torch.cat(batch.reward)
-
-    state_action_values = policy_net(state_batch).gather(1, action_batch)
+    with torch.amp.autocast(device_type=device.type, dtype=torch.bfloat16):
+        state_action_values = policy_net(state_batch).gather(1, action_batch)
 
     next_state_values = torch.zeros(BATCH_SIZE, device=device)
     with torch.no_grad():
@@ -212,7 +213,7 @@ def optimize_model():
 if torch.cuda.is_available() or torch.backends.mps.is_available():
     num_episodes = 600
 else:
-    num_episodes = 700
+    num_episodes = 1000
 
 start = time.time()
 
@@ -286,10 +287,10 @@ plot_durations(show_result=True)
 qfig, qaxis = plt.subplots()
 qaxis.plot(avg_q_values)
 
-print(f"Average Max Q Vals: {avg_q_values}")
+print(f"Average Max Q Vals: {numpy.mean(avg_q_values)}")
 
-fig.savefig("dqn_fire.png")
-qfig.savefig("q_vals.png")
+fig.savefig("Current_Run/dqn_reward_duration.png")
+qfig.savefig("Current_Run/q_vals.png")
 
 plt.ioff()
 plt.show()
