@@ -54,11 +54,11 @@ class DQN(nn.Module):
     def __init__(self, n_observations, n_actions):
         super(DQN, self).__init__()
         self.sequence = Sequential(
-            nn.Linear(n_observations, 128),
+            nn.Linear(n_observations, 256),
             nn.LeakyReLU(negative_slope=0.01),
-            nn.Linear(128, 128),
+            nn.Linear(256, 256),
             nn.LeakyReLU(negative_slope=0.01),
-            nn.Linear(128, n_actions),
+            nn.Linear(256, n_actions),
         )
 
     def forward(self, x):
@@ -191,8 +191,8 @@ def optimize_model():
 
     action_batch = torch.cat(batch.action)
     reward_batch = torch.cat(batch.reward)
-    with torch.amp.autocast(device_type=device.type, dtype=torch.bfloat16):
-        state_action_values = policy_net(state_batch).gather(1, action_batch)
+
+    state_action_values = policy_net(state_batch).gather(1, action_batch)
 
     next_state_values = torch.zeros(BATCH_SIZE, device=device)
     with torch.no_grad():
