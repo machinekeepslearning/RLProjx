@@ -39,11 +39,11 @@ class DQN(nn.Module):
     def __init__(self, n_observations, n_actions):
         super(DQN, self).__init__()
         self.sequence = Sequential(
-            nn.Linear(n_observations, 128),
+            nn.Linear(n_observations, 256),
             nn.LeakyReLU(negative_slope=0.01),
-            nn.Linear(128, 128),
+            nn.Linear(256, 256),
             nn.LeakyReLU(negative_slope=0.01),
-            nn.Linear(128, n_actions),
+            nn.Linear(256, n_actions),
         )
 
     def forward(self, x):
@@ -54,8 +54,8 @@ class DQN(nn.Module):
 policy_net = DQN(n_observations, n_actions).to(device)
 target_net = DQN(n_observations, n_actions).to(device)
 
-policy_net.load_state_dict(torch.load("Run_11/asteroid_policy.pt", weights_only=True))
-target_net.load_state_dict(torch.load("Run_11/asteroid_target.pt", weights_only=True))
+policy_net.load_state_dict(torch.load("Current_Run/asteroid_policy.pt", weights_only=True))
+target_net.load_state_dict(torch.load("Current_Run/asteroid_target.pt", weights_only=True))
 
 
 def select_action(state):
