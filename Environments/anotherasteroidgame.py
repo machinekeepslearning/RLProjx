@@ -354,7 +354,7 @@ def step(action):
         pygame.display.flip()
         screen.fill("black")
 
-    spawnAsteroid(700, 800, 10, 30, 20)
+    spawnAsteroid(700, 800, 40, 60, 20)
 
     bot.update(action)
     for roid in list(asteroids.values()):
