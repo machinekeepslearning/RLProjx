@@ -8,7 +8,7 @@ import keyboard
 import time
 from helpers.geometry_helpers import *
 
-debug = True
+debug = False
 render = False
 running = True
 gameover = False
