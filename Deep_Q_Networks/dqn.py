@@ -4,7 +4,7 @@ from itertools import count
 
 from torch.nn import Sequential
 
-from Environments.anotherasteroidgame import *
+from Environments.raycast_asteroid import *
 
 #env_render()
 
@@ -279,8 +279,6 @@ torch.save(target_net.state_dict(), target_path)
 
 print('Complete')
 print(f"Training took {time.time() - start} seconds")
-
-
 
 plot_durations(show_result=True)
 

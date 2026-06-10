@@ -6,7 +6,7 @@ from itertools import count
 
 from torch.nn import Sequential
 
-from Environments.anotherasteroidgame import *
+from Environments.raycast_asteroid import *
 
 import torch
 import torch.nn as nn
@@ -54,11 +54,11 @@ class DQN(nn.Module):
     def __init__(self, n_observations, n_actions):
         super(DQN, self).__init__()
         self.sequence = Sequential(
-            nn.Linear(n_observations, 128),
+            nn.Linear(n_observations, 256),
             nn.LeakyReLU(negative_slope=0.01),
-            nn.Linear(128, 128),
+            nn.Linear(256, 256),
             nn.LeakyReLU(negative_slope=0.01),
-            nn.Linear(128, n_actions),
+            nn.Linear(256, n_actions),
         )
 
     def forward(self, x):
@@ -180,8 +180,6 @@ def optimize_model():
                                        if s is not None])
     state_batch = torch.cat(batch.state)
 
-    #print(state_batch.shape)
-
     action_batch = torch.cat(batch.action)
     reward_batch = torch.cat(batch.reward)
 
@@ -195,7 +193,8 @@ def optimize_model():
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 
     criterion = nn.SmoothL1Loss()
-    loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
+    with torch.amp.autocast(device_type=device.type, dtype=torch.bfloat16):
+        loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
 
     optimizer.zero_grad()
     loss.backward()

@@ -8,7 +8,7 @@ import keyboard
 import time
 from helpers.geometry_helpers import *
 
-debug = False
+debug = True
 render = False
 running = True
 gameover = False
@@ -38,6 +38,7 @@ if debug:
 laser_off_cooldown = True
 asteroid_off_cooldown = True
 asteroids = {}
+render_astroids = True
 
 lasers = {}
 
@@ -54,7 +55,14 @@ def toggle_sensors():
     sensor_enabled = not sensor_enabled
 
 
+def toggle_asteroids():
+    global render_astroids
+
+    render_astroids = not render_astroids
+
+
 keyboard.add_hotkey("p", toggle_sensors)
+keyboard.add_hotkey("a", toggle_asteroids)
 
 
 def cooldown(cooldown_time, key):
@@ -140,7 +148,7 @@ class Asteroid(Circle):
                 self.center[1] > (ybounds[1] + 300)):
             asteroids.pop(self.id, None)
 
-        if render:
+        if render and render_astroids:
             self.render(screen)
 
 
@@ -156,7 +164,7 @@ class Player(Circle):
         self.action_space = (0, 1, 2, 3, 4)
         self.direction_point = self.center + self.radius * numpy.array([math.cos(self.angle), math.sin(self.angle)])
         #Self data + asteroid data + laser data
-        self.num_inputs = 50
+        self.num_inputs = 100
 
         self.asteroids_pos = numpy.empty((0, 2))
         self.collisions = []
@@ -181,6 +189,7 @@ class Player(Circle):
 
             self.sensor_color[i] = "green"
         self.sensor_color[0] = "red"
+
     def fire(self):
         global lasers, laser_off_cooldown
         if laser_off_cooldown:
@@ -245,7 +254,6 @@ class Player(Circle):
             uy = math.sin(new_sensor_angles[i])
             self.sensor_unit_vectors[i] = (ux, uy)
 
-
         if (self.center[0] < xbounds[0] or
                 self.center[0] > xbounds[1] or
                 self.center[1] < ybounds[0] or
@@ -264,9 +272,11 @@ class Player(Circle):
 
 bot = Player(20.0, 800, 20, bounds[0] / 2, bounds[1] / 2, "blue")
 
+old_along = numpy.zeros(bot.num_sensors) + 1000
+
 
 def globalUpdate():
-    global reward
+    global reward, old_along
 
     asteroid_list = list(asteroids.values())
     asteroid_pos = get_positions(asteroid_list)
@@ -280,7 +290,7 @@ def globalUpdate():
     projections = rel_asteroid_pos.dot(bot.sensor_unit_vectors.transpose())
     normals = numpy.sqrt(numpy.square(dist.repeat(bot.num_sensors, axis=1)) - numpy.square(projections))
     along_sensor = projections - numpy.sqrt(
-        numpy.square(asteroid_radii.repeat(bot.num_sensors, axis=1)) - numpy.square(normals)) - bot.radius
+        numpy.square(asteroid_radii.repeat(bot.num_sensors, axis=1)) - numpy.square(normals))
 
     #Compute and stack border checks
     border_normals = numpy.array([[0, 1],
@@ -294,15 +304,19 @@ def globalUpdate():
     delta = border_starts - bot.center
     numer = numpy.expand_dims(numpy.sum(numpy.multiply(border_normals, delta), axis=1), -1)
     denom = numpy.matmul(border_normals, bot.sensor_unit_vectors.transpose())
-    border_dist = numer/denom
+    border_dist = numer / denom
 
     #Combine and Find closest
     combined = numpy.vstack((along_sensor, border_dist))
     check_invalid = numpy.logical_and(numpy.logical_not(numpy.isnan(combined)), combined > 0)
 
-    min_along = numpy.min(combined, where=check_invalid, axis=0, initial=1000)
+    min_along = numpy.min(combined, where=check_invalid, axis=0, initial=1000) - bot.radius
 
-    observation = min_along.flatten()/1000
+    delta_along_sensor = min_along - old_along
+
+    old_along = min_along
+
+    observation = numpy.concatenate((min_along.flatten() / 1000, delta_along_sensor / bot.speed))
 
     #Laser-Asteroid Collisions
     laser_keys = list(lasers.keys())
@@ -338,8 +352,13 @@ def globalUpdate():
 
     if render and sensor_enabled:
         casts = numpy.expand_dims(min_along, -1) * bot.sensor_unit_vectors
+        vels = numpy.expand_dims(delta_along_sensor, -1) * bot.sensor_unit_vectors
         for i in range(len(casts)):
-            pygame.draw.line(screen, bot.sensor_color[i], bot.center, casts[i] + bot.center)
+            start = bot.center + bot.radius * bot.sensor_unit_vectors[i]
+            pygame.draw.line(screen, bot.sensor_color[i],
+                             start,
+                             casts[i] + start)
+            #pygame.draw.line(screen, "yellow", start + casts[i], vels[i] + start + casts[i])
 
     return observation
 
@@ -354,7 +373,7 @@ def step(action):
         pygame.display.flip()
         screen.fill("black")
 
-    spawnAsteroid(700, 800, 40, 60, 20)
+    spawnAsteroid(700, 800, 30, 60, 20)
 
     bot.update(action)
     for roid in list(asteroids.values()):
@@ -370,7 +389,7 @@ def step(action):
 
 
 def reset():
-    global gameover, reward
+    global gameover, reward, old_along
 
     reward = 0
     gameover = False
@@ -386,6 +405,8 @@ def reset():
     bot.reset()
 
     inputs = numpy.zeros((bot.num_inputs,)) + 1
+
+    old_along = numpy.zeros(bot.num_sensors) + 1000
 
     return inputs, 0
 
