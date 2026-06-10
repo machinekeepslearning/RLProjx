@@ -14,6 +14,8 @@ running = True
 gameover = False
 sensor_enabled = False
 
+print(f"Debug Mode: {debug}")
+
 screen: pygame.Surface = None
 
 collisions = []
@@ -25,6 +27,7 @@ bounds = (xbounds[1], ybounds[1])
 
 def env_render():
     global render, screen
+    print("Rendering Enabled")
     render = True
 
     pygame.init()
