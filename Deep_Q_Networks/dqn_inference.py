@@ -62,8 +62,8 @@ class DQN(nn.Module):
 policy_net = DQN(n_observations, n_actions).to(device)
 target_net = DQN(n_observations, n_actions).to(device)
 
-policy_net.load_state_dict(torch.load("256_deltas/Run_1/asteroid_policy.pt", weights_only=True, map_location=device.type))
-target_net.load_state_dict(torch.load("256_deltas/Run_1/asteroid_target.pt", weights_only=True, map_location=device.type))
+policy_net.load_state_dict(torch.load("Current_Run/asteroid_policy.pt", weights_only=True, map_location=device.type))
+target_net.load_state_dict(torch.load("Current_Run/asteroid_target.pt", weights_only=True, map_location=device.type))
 
 
 def select_action(state):

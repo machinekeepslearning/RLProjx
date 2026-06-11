@@ -65,7 +65,7 @@ def toggle_asteroids():
 
 
 keyboard.add_hotkey("p", toggle_sensors)
-keyboard.add_hotkey("a", toggle_asteroids)
+keyboard.add_hotkey("o", toggle_asteroids)
 
 
 def cooldown(cooldown_time, key):
@@ -165,9 +165,10 @@ class Player(Circle):
         self.angular_speed = angular_speed * 5e-4
         self.velocity = numpy.zeros((2,))
         self.action_space = (0, 1, 2, 3, 4)
+        self.action_switch = numpy.zeros(5)
         self.direction_point = self.center + self.radius * numpy.array([math.cos(self.angle), math.sin(self.angle)])
         #Self data + asteroid data + laser data
-        self.num_inputs = 100
+        self.num_inputs = 55
 
         self.asteroids_pos = numpy.empty((0, 2))
         self.collisions = []
@@ -178,7 +179,6 @@ class Player(Circle):
         self.laser_rad = 2
         self.laser_speed = 1000
 
-        self.sensor_length = 50
         self.num_sensors = 50
         self.sensor_unit_vectors = numpy.zeros((self.num_sensors, 2))
         self.start_sensor_angles = numpy.zeros((self.num_sensors,))
@@ -220,15 +220,14 @@ class Player(Circle):
         self.velocity[0] = self.speed * math.cos(self.angle)
         self.velocity[1] = self.speed * math.sin(self.angle)
 
+        self.action_switch = numpy.zeros(5)
         if debug:
             if keyboard.is_pressed('w'):
-                self.center[0] += self.speed * math.cos(self.angle)
-                self.center[1] += self.speed * math.sin(self.angle)
+                self.center += self.velocity
             if keyboard.is_pressed('a'):
-                self.angle += -self.angular_speed
+                self.angle -= self.angular_speed
             if keyboard.is_pressed('s'):
-                self.center[0] -= self.speed * math.cos(self.angle)
-                self.center[1] -= self.speed * math.sin(self.angle)
+                self.center -= self.velocity
             if keyboard.is_pressed('d'):
                 self.angle += self.angular_speed
             if keyboard.is_pressed('space'):
@@ -236,18 +235,19 @@ class Player(Circle):
         else:
             if action == 0:
                 self.center += self.velocity
-                # print("Moving forward")
+                self.action_switch[0] = 1
             if action == 1:
                 self.center -= self.velocity
-                # print("Moving backward")
+                self.action_switch[1] = 1
             if action == 2:
                 self.angle += self.angular_speed
-                # print("Rotating clockwise")
+                self.action_switch[2] = 1
             if action == 3:
                 self.angle -= self.angular_speed
-                # print("Rotating counter clockwise")
+                self.action_switch[3] = 1
             if action == 4:
                 self.fire()
+                self.action_switch[4] = 1
 
         self.angle %= 2 * math.pi
 
@@ -275,11 +275,8 @@ class Player(Circle):
 
 bot = Player(20.0, 800, 20, bounds[0] / 2, bounds[1] / 2, "blue")
 
-old_along = numpy.zeros(bot.num_sensors) + 1000
-
-
 def globalUpdate():
-    global reward, old_along
+    global reward
 
     asteroid_list = list(asteroids.values())
     asteroid_pos = get_positions(asteroid_list)
@@ -315,11 +312,8 @@ def globalUpdate():
 
     min_along = numpy.min(combined, where=check_invalid, axis=0, initial=1000) - bot.radius
 
-    delta_along_sensor = min_along - old_along
-
-    old_along = min_along
-
-    observation = numpy.concatenate((min_along.flatten() / 1000, delta_along_sensor / bot.speed))
+    #print(bot.action_switch)
+    observation = numpy.concatenate((min_along.flatten() / 1000, bot.action_switch))
 
     #Laser-Asteroid Collisions
     laser_keys = list(lasers.keys())
@@ -355,7 +349,6 @@ def globalUpdate():
 
     if render and sensor_enabled:
         casts = numpy.expand_dims(min_along, -1) * bot.sensor_unit_vectors
-        vels = numpy.expand_dims(delta_along_sensor, -1) * bot.sensor_unit_vectors
         for i in range(len(casts)):
             start = bot.center + bot.radius * bot.sensor_unit_vectors[i]
             pygame.draw.line(screen, bot.sensor_color[i],
@@ -408,8 +401,6 @@ def reset():
     bot.reset()
 
     inputs = numpy.zeros((bot.num_inputs,)) + 1
-
-    old_along = numpy.zeros(bot.num_sensors) + 1000
 
     return inputs, 0
 
