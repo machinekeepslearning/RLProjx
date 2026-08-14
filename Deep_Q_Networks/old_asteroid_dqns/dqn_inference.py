@@ -65,17 +65,17 @@ target_net = DQN(n_observations, n_actions).to(device)
 policy_net.load_state_dict(torch.load("Current_Run/asteroid_policy.pt", weights_only=True, map_location=device.type))
 target_net.load_state_dict(torch.load("Current_Run/asteroid_target.pt", weights_only=True, map_location=device.type))
 
+policy_net.eval()
+target_net.eval()
 
 def select_action(state):
     with torch.no_grad():
-        return policy_net(state).max(1).indices.view(1, 1)
+        return target_net(state).max(1).indices.view(1, 1)
 
 
 state, _ = reset()
 state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
 start = time.time()
-
-policy_net.eval()
 
 rewards = []
 while end:

@@ -8,7 +8,7 @@ import keyboard
 import time
 from helpers.geometry_helpers import *
 
-debug = False
+debug = True
 render = False
 running = True
 gameover = False
@@ -20,9 +20,7 @@ screen: pygame.Surface = None
 
 collisions = []
 
-xbounds = [0, 800]
-ybounds = [0, 800]
-bounds = (xbounds[1], ybounds[1])
+bounds = (800, 800)
 
 
 def env_render():
@@ -107,10 +105,10 @@ class Laser(Circle):
     def update(self):
         self.center += self.velocity
 
-        if (self.center[0] < xbounds[0] or
-                self.center[0] > xbounds[1] or
-                self.center[1] < ybounds[0] or
-                self.center[1] > ybounds[1]):
+        if (self.center[0] < 0 or
+                self.center[0] > bounds[0] or
+                self.center[1] < 0 or
+                self.center[1] > bounds[1]):
             lasers.pop(self.id, None)
 
         if render:
@@ -121,8 +119,8 @@ class Asteroid(Circle):
     def __init__(self, speed, radius, id):
         self.start_angle = random.uniform(0, 2 * math.pi)
         self.pos_radius = 700
-        x = (xbounds[1] - xbounds[0]) / 2.0 + self.pos_radius * math.cos(self.start_angle)
-        y = (ybounds[1] - ybounds[0]) / 2.0 + self.pos_radius * math.sin(self.start_angle)
+        x =  bounds[0]/ 2.0 + self.pos_radius * math.cos(self.start_angle)
+        y = bounds[1]/ 2.0 + self.pos_radius * math.sin(self.start_angle)
         super().__init__(x, y, radius, "red")
 
         self.id = id
@@ -145,10 +143,10 @@ class Asteroid(Circle):
         self.center[0] += self.velocity[0]
         self.center[1] += self.velocity[1]
 
-        if (self.center[0] < (xbounds[0] - 300) or
-                self.center[0] > (xbounds[1] + 300) or
-                self.center[1] < (ybounds[0] - 300) or
-                self.center[1] > (ybounds[1] + 300)):
+        if (self.center[0] < -300 or
+                self.center[0] > bounds[0] + 300 or
+                self.center[1] < -300 or
+                self.center[1] > bounds[1] + 300):
             asteroids.pop(self.id, None)
 
         if render and render_astroids:
@@ -257,10 +255,10 @@ class Player(Circle):
             uy = math.sin(new_sensor_angles[i])
             self.sensor_unit_vectors[i] = (ux, uy)
 
-        if (self.center[0] < xbounds[0] or
-                self.center[0] > xbounds[1] or
-                self.center[1] < ybounds[0] or
-                self.center[1] > ybounds[1]):
+        if (self.center[0] < 0 or
+                self.center[0] > bounds[0] or
+                self.center[1] < 0 or
+                self.center[1] > bounds[1]):
             reward -= 0.6
             bot.lives -= 1
             self.center[0] = bounds[0] / 2
@@ -368,8 +366,6 @@ def step(action):
         pygame.event.pump()
         pygame.display.flip()
         screen.fill("black")
-
-    spawnAsteroid(700, 800, 30, 60, 20)
 
     bot.update(action)
     for roid in list(asteroids.values()):

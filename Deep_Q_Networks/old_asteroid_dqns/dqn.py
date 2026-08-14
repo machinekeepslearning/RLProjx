@@ -4,7 +4,7 @@ from itertools import count
 
 from torch.nn import Sequential
 
-from Environments.raycast_asteroid import *
+from legacy_environments.raycast_asteroid import *
 
 #env_render()
 
@@ -63,7 +63,6 @@ class DQN(nn.Module):
 
     def forward(self, x):
         return self.sequence.forward(x)
-
 
 episode_durations = []
 episode_rewards = []
@@ -152,7 +151,6 @@ def select_action(state):
 
 fig, (ax1, ax2) = plt.subplots(2, 1, constrained_layout=True)
 fig.set_size_inches(8, 6.4, True)
-
 
 def plot_durations(show_result=False):
     global ax1, ax2
@@ -262,7 +260,7 @@ for i_episode in range(num_episodes):
         if steps_done % 316000 == 0:
             torch.save(policy_net.state_dict(), policy_path)
             torch.save(target_net.state_dict(), target_path)
-            print(f"Saved Data after {time.time() - start} seconds")
+            print(f"Saved Data after {time.time()-start} seconds")
 
         if done or terminate:
             end = time.time() - step_start

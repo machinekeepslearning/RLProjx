@@ -1,5 +1,3 @@
-import os.path
-
 import matplotlib.pyplot as plt
 from collections import namedtuple, deque
 from itertools import count
@@ -8,18 +6,20 @@ from torch.nn import Sequential
 
 from Environments.raycast_asteroid import *
 
+#env_render()
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import time
+import keyboard
 
 from pathlib import Path
 
-Path("Current_Run").mkdir(parents=True, exist_ok=True)
+Path("256_deltas/Current_Run").mkdir(parents=True, exist_ok=True)
 
-policy_path = "Current_Run/asteroid_policy.pt"
-target_path = "Current_Run/asteroid_target.pt"
-stop_path = "stop.txt"
+policy_path = "256_deltas/Current_Run/asteroid_policy.pt"
+target_path = "256_deltas/Current_Run/asteroid_target.pt"
 
 plt.ion()
 
@@ -84,7 +84,7 @@ frame_skip = 1
 
 preload = False
 
-run_num = 99
+run_num = 6
 
 # n_actions = env.action_space.n
 n_actions = len(bot.action_space)
@@ -108,6 +108,17 @@ if preload:
     steps_done = 5 * EPS_DECAY
 else:
     steps_done = 0
+
+terminate = False
+
+
+def termTraining():
+    global terminate
+
+    terminate = True
+
+
+keyboard.add_hotkey('q', termTraining)
 
 notified = False
 
@@ -183,8 +194,7 @@ def optimize_model():
     action_batch = torch.cat(batch.action)
     reward_batch = torch.cat(batch.reward)
 
-    with torch.amp.autocast(device_type=device.type, dtype=torch.bfloat16):
-        state_action_values = policy_net(state_batch).gather(1, action_batch)
+    state_action_values = policy_net(state_batch).gather(1, action_batch)
 
     next_state_values = torch.zeros(BATCH_SIZE, device=device)
     with torch.no_grad():
@@ -193,8 +203,7 @@ def optimize_model():
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 
     criterion = nn.SmoothL1Loss()
-    with torch.amp.autocast(device_type=device.type, dtype=torch.bfloat16):
-        loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
+    loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
 
     optimizer.zero_grad()
     loss.backward()
@@ -209,8 +218,6 @@ else:
     num_episodes = 1000
 
 start = time.time()
-
-terminate = False
 
 for i_episode in range(num_episodes):
     state, _ = reset()
@@ -257,16 +264,12 @@ for i_episode in range(num_episodes):
             torch.save(target_net.state_dict(), target_path)
             print(f"Saved Data after {time.time() - start} seconds")
 
-        if os.path.exists(stop_path):
-            terminate = True
-            time.sleep(1)
-            os.remove(stop_path)
-
         if done or terminate:
             end = time.time() - step_start
             episode_durations.append((t + 1))
             episode_rewards.append(total_reward)
             avg_q_values.append(numpy.mean(q_values))
+            plot_durations()
             break
 
         time.sleep(0.001)
@@ -284,10 +287,10 @@ plot_durations(show_result=True)
 qfig, qaxis = plt.subplots()
 qaxis.plot(avg_q_values)
 
-print(f"Average of Average Max Q Vals: {numpy.mean(avg_q_values)}")
+print(f"Average Max Q Vals: {numpy.mean(avg_q_values)}")
 
 fig.savefig("Current_Run/dqn_reward_duration.png")
 qfig.savefig("Current_Run/q_vals.png")
 
 plt.ioff()
-plt.close()
+plt.show()
